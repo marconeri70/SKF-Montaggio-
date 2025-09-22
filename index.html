@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SKF 5S · CH 24 — Montaggio</title>
+  <link rel="icon" href="assets/skf-512.png">
+  <link rel="stylesheet" href="style.css" />
+  <!-- Chart.js via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body class="page">
+  <header class="topbar">
+    <div class="brand">
+      <img src="assets/skf-512.png" alt="SKF" />
+      <h1 class="brand-title">
+        <span class="s1">S</span><span class="s2">K</span><span class="s3">F</span>
+        <span>&nbsp;</span>
+        <span class="s1">5</span><span class="s2">S</span>
+      </h1>
+    </div>
+    <nav class="actions">
+      <a class="btn link" href="checklist.html">Vai alla checklist →</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <!-- COSA È 5S -->
+    <section class="card grid-hero">
+      <div class="hero-img">
+        <img src="assets/5s-hero.png" alt="5S" />
+      </div>
+      <div class="hero-txt">
+        <h2>Cosa è 5S</h2>
+        <ul class="bullets">
+          <li><span class="badge s1">1S Selezionare</span> — Eliminare il superfluo.</li>
+          <li><span class="badge s2">2S Sistemare</span> — Un posto per tutto e tutto al suo posto.</li>
+          <li><span class="badge s3">3S Splendere</span> — Pulire e prevenire lo sporco.</li>
+          <li><span class="badge s4">4S Standardizzare</span> — Regole e segnali chiari.</li>
+          <li><span class="badge s5">5S Sostenere</span> — Abitudine e miglioramento continuo.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- GRAFICO -->
+    <section class="card">
+      <h2>Andamento CH 24 — Montaggio</h2>
+      <canvas id="chart" height="140"></canvas>
+      <div id="lateChips" class="late-chips"></div>
+      <div class="row end">
+        <a class="btn ghost" href="checklist.html">Apri checklist</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    BUILD montaggio-v1
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
