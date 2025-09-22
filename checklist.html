@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CH 24 — Montaggio · Checklist 5S</title>
+  <link rel="icon" href="assets/skf-512.png">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="page">
+
+  <header class="topbar">
+    <a class="btn ghost" href="index.html">← Indietro</a>
+    <h1 class="title">CH 24 — Montaggio</h1>
+    <button id="lockBtn" class="btn lock" title="Sblocca per modificare"></button>
+  </header>
+
+  <main class="container">
+    <!-- KPI -->
+    <section class="grid-kpi">
+      <div class="card kpi">
+        <div class="kpi-title">Punteggio medio</div>
+        <div id="avgScore" class="kpi-value">0%</div>
+      </div>
+      <div class="card kpi">
+        <div class="kpi-title">Azioni in ritardo</div>
+        <div id="lateCount" class="kpi-value">0</div>
+      </div>
+    </section>
+
+    <!-- Riepilogo 5S -->
+    <section class="card">
+      <div id="summary" class="summary"></div>
+      <button id="toggleAll" class="btn primary">Comprimi / Espandi</button>
+    </section>
+
+    <!-- Sezioni 5S -->
+    <section id="sections" class="sections"></section>
+  </main>
+
+  <!-- Popup info S -->
+  <dialog id="infoDialog" class="info">
+    <div class="info-head">
+      <div class="dot" id="infoDot"></div>
+      <div id="infoTitle" class="info-title">Titolo</div>
+    </div>
+    <div id="infoText" class="info-text">Descrizione…</div>
+    <div class="row end">
+      <button class="btn" onclick="document.getElementById('infoDialog').close()">Chiudi</button>
+    </div>
+  </dialog>
+
+  <footer class="foot">
+    BUILD montaggio-v1
+  </footer>
+
+  <script src="checklist.js"></script>
+</body>
+</html>
