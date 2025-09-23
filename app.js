@@ -1,3 +1,8 @@
+// protezione da JSON corrotti
+function loadStateSafe(key){
+  try{ const r = localStorage.getItem(key); return r? JSON.parse(r): null; }
+  catch(e){ localStorage.removeItem(key); return null; }
+}
 /* Home Montaggio · CH 24
    - Legge dati da localStorage 'skf5s:montaggio-ch24'
    - Disegna grafico Chart.js con 1S..5S + Ritardi
