@@ -1,275 +1,447 @@
-/* ====== CH name with PIN ====== */
-const CH_KEY = 'skf_ch_name';
-const PIN_KEY = 'skf_pin';          // store hashed (simple) – here demo plain to keep offline
-const DEFAULT_CH = 'CH 24 — Montaggio';
-const DEFAULT_PIN = '2468';
+/* ===============================
+   SKF 5S — Montaggio (CH 24)
+   Funzioni condivise home/checklist
+================================= */
+const APP_KEY = "skf5s-montaggio-ch24";
+const PIN_STORAGE = "skf5s-pin"; // per lock azioni protette
+const DEFAULT_PIN = "2468"; // cambia se vuoi
 
-function getCH(){ return localStorage.getItem(CH_KEY) || DEFAULT_CH; }
-function setCH(name){ localStorage.setItem(CH_KEY, name || DEFAULT_CH); renderCH(); }
+const COLORS = {
+  s1: "#7b4ede", // viola SKF
+  s2: "#ef5350", // rosso
+  s3: "#f3b318", // giallo
+  s4: "#2eb36a", // verde
+  s5: "#2563eb", // blu
+  late: "#e11d48" // ritardi
+};
+const LABELS = {
+  s1: "1S",
+  s2: "2S",
+  s3: "3S",
+  s4: "4S",
+  s5: "5S"
+};
+const INFO = {
+  s1: "Eliminare ciò che non serve. Rimuovi superfluo e crea area di lavoro essenziale, ordinata e sicura.",
+  s2: "Un posto per tutto e tutto al suo posto.",
+  s3: "Pulire e rimuovere le cause dello sporco.",
+  s4: "Regole e segnali visivi chiari.",
+  s5: "Disciplina, abitudine e miglioramento continuo."
+};
 
-function getPIN(){ return localStorage.getItem(PIN_KEY) || DEFAULT_PIN; }
-function askPIN(msg='Inserisci PIN'){ const p = prompt(msg); return p === getPIN(); }
-
-function askRenameCH(){
-  if(!askPIN('PIN per rinominare il canale')) return;
-  const current = getCH();
-  const val = prompt('Nuovo nome canale (es. "CH 24 — Montaggio")', current);
-  if(val && val.trim()) setCH(val.trim());
-}
-
-function renderCH(){
-  document.querySelectorAll('[data-ch]').forEach(el=> el.textContent = getCH());
-}
-
-/* ====== Demo data structure in localStorage ====== */
-const LS_DATA = 'skf5s_data';
-function loadData(){
-  const raw = localStorage.getItem(LS_DATA);
-  if(raw) try { return JSON.parse(raw); } catch(e){}
-  // initial empty structure
-  const base = {
-    ch: getCH(),
-    sections: [
-      { key:'1S', color:'s1', title:'1S — Selezionare', value:0, items:[] },
-      { key:'2S', color:'s2', title:'2S — Sistemare',   value:0, items:[] },
-      { key:'3S', color:'s3', title:'3S — Splendere',   value:0, items:[] },
-      { key:'4S', color:'s4', title:'4S — Standardizzare', value:0, items:[] },
-      { key:'5S', color:'s5', title:'5S — Sostenere',   value:0, items:[] }
-    ]
+function getState() {
+  const saved = localStorage.getItem(APP_KEY);
+  if (saved) return JSON.parse(saved);
+  // stato iniziale
+  const blankS = () => ({ value: 0, date: todayISO(), note: "", who: "" });
+  const state = {
+    channelName: "CH 24",
+    areaName: "Montaggio",
+    pin: DEFAULT_PIN,
+    s1: { ...blankS() },
+    s2: { ...blankS() },
+    s3: { ...blankS() },
+    s4: { ...blankS() },
+    s5: { ...blankS() }
   };
-  localStorage.setItem(LS_DATA, JSON.stringify(base));
-  return base;
+  localStorage.setItem(APP_KEY, JSON.stringify(state));
+  return state;
 }
-function saveData(d){ d.ch = getCH(); localStorage.setItem(LS_DATA, JSON.stringify(d)); }
-
-/* ====== HOME (index) ====== */
-let _homeChart;
-function renderHomeChart(canvasId, lateButtonsId){
-  const d = loadData();
-  // compute late
-  const lateBy = { '1S':0,'2S':0,'3S':0,'4S':0,'5S':0 };
-  d.sections.forEach(s=>{
-    s.items.forEach(it=>{
-      if(isLate(it.date)) lateBy[s.key]++;
-    });
-  });
-
-  const labels = ['1S','2S','3S','4S','5S','Ritardi'];
-  const values = [
-    percent(d.sections[0].value),
-    percent(d.sections[1].value),
-    percent(d.sections[2].value),
-    percent(d.sections[3].value),
-    percent(d.sections[4].value),
-    lateTotal(lateBy)
-  ];
-  const colors = ['#7c4dff','#ef4444','#f59e0b','#22c55e','#2563eb','#ef4444'];
-
-  const ctx = document.getElementById(canvasId).getContext('2d');
-  if(_homeChart) _homeChart.destroy();
-  _homeChart = new Chart(ctx,{
-    type:'bar',
-    data:{ labels, datasets:[{ data: values, backgroundColor: colors, borderWidth:0 }]},
-    options:{
-      scales:{ y:{ beginAtZero:true, grid:{display:false}, ticks:{ callback:v=> v+'%' } },
-               x:{ grid:{display:false} } },
-      plugins:{
-        legend:{display:false},
-        tooltip:{callbacks:{label:(ctx)=> ctx.parsed.y + (ctx.label==='Ritardi'?'':'%')}},
-        datalabels:false
-      }
-    }
-  });
-
-  // Late buttons
-  const lateWrap = document.getElementById(lateButtonsId);
-  lateWrap.innerHTML = '';
-  Object.entries(lateBy).forEach(([k,cnt])=>{
-    if(cnt>0){
-      const btn = document.createElement('button');
-      btn.className = 'btn ghost '+colorClass(k);
-      btn.textContent = `${k} in ritardo (${cnt})`;
-      btn.onclick = ()=> location.href = `checklist.html#${k}`;
-      lateWrap.appendChild(btn);
-    }
-  });
+function setState(patch) {
+  const state = { ...getState(), ...patch };
+  localStorage.setItem(APP_KEY, JSON.stringify(state));
+  return state;
 }
-function percent(v){ return Math.max(0, Math.min(100, Number(v)||0)); }
-function lateTotal(map){ return Object.values(map).reduce((a,b)=>a+b,0); }
-function colorClass(key){ return { '1S':'s1','2S':'s2','3S':'s3','4S':'s4','5S':'s5' }[key]||''; }
-
-/* ====== CHECKLIST ====== */
-function mountChecklist(cfg){
-  const els = {
-    pills: document.getElementById(cfg.pillsEl),
-    cards: document.getElementById(cfg.cardsEl),
-    avg:   document.getElementById(cfg.avgEl),
-    late:  document.getElementById(cfg.lateEl),
-    toggle:document.getElementById(cfg.toggleBtn),
-    lock:  document.getElementById(cfg.lockBtn)
-  };
-  let unlocked = false;
-
-  const data = loadData();
-
-  // pills
-  function renderPills(){
-    els.pills.innerHTML = '';
-    data.sections.forEach(s=>{
-      const pill = document.createElement('button');
-      pill.className = `pill ${s.color}`;
-      pill.textContent = `${s.key} ${percent(s.value)}%`;
-      pill.onclick = ()=> {
-        document.getElementById(`card-${s.key}`).scrollIntoView({behavior:'smooth',block:'start'});
-      };
-      els.pills.appendChild(pill);
-    });
-  }
-
-  // late count + avg
-  function recomputeStats(){
-    let sum = 0, count = 0, late = 0;
-    data.sections.forEach(s=>{
-      sum += percent(s.value); count++;
-      s.items.forEach(i=> { if(isLate(i.date)) late++; });
-    });
-    els.avg.textContent  = Math.round(sum/(count||1)) + '%';
-    els.late.textContent = late;
-    saveData(data);
-  }
-
-  // cards
-  function renderCards(){
-    els.cards.innerHTML = '';
-    data.sections.forEach(s=>{
-      const card = document.createElement('article');
-      card.className = `card-s ${s.color}`;
-      card.id = `card-${s.key}`;
-
-      if(s.items.some(i=>isLate(i.date))) card.classList.add('late');
-
-      card.innerHTML = `
-        <div class="title">
-          <div class="dot ${s.color}" style="width:44px;height:16px;border-radius:6px;background:var(--${s.color});"></div>
-          <div class="ttext">${s.title}</div>
-          <span class="badge">Valore: ${percent(s.value)}%</span>
-          <button class="info" aria-label="Info" data-info>i</button>
-          <button class="add" data-add title="Duplica scheda (+, PIN)">+</button>
-        </div>
-        <details class="details" open>
-          <summary>Dettagli</summary>
-          <div class="row">
-            <input type="text" placeholder="Responsabile / Operatore" data-field="who" />
-            <textarea rows="2" placeholder="Note..." data-field="note"></textarea>
-            <div class="pts">
-              ${[0,1,3,5].map(v=>`<button class="p" data-pt="${v}">${v}</button>`).join('')}
-              <input type="date" data-field="date" />
-              <button class="del" data-del title="Elimina (PIN)">🗑</button>
-            </div>
-          </div>
-        </details>
-      `;
-
-      // events
-      const ptBtns = card.querySelectorAll('[data-pt]');
-      ptBtns.forEach(b=>{
-        b.addEventListener('click',()=>{
-          if(!unlocked && !askPIN('PIN per modificare')) return;
-          ptBtns.forEach(x=>x.classList.remove('active'));
-          b.classList.add('active');
-          s.value = Number(b.dataset.pt) * 20;  // 0/1/3/5 => 0/20/60/100
-          card.querySelector('.badge').textContent = `Valore: ${percent(s.value)}%`;
-          renderPills();
-          recomputeStats();
-        });
-      });
-
-      card.querySelector('[data-field="date"]').addEventListener('change', (e)=>{
-        if(!unlocked && !askPIN('PIN per modificare')) { e.preventDefault(); return; }
-        const v = e.target.value;
-        // store last date item
-        const todayItem = { date:v, who:'', note:'' };
-        s.items = [todayItem]; // singolo record giornaliero semplice
-        // late highlight
-        if(isLate(v)) card.classList.add('late'); else card.classList.remove('late');
-        recomputeStats();
-      });
-
-      card.querySelector('[data-del]').addEventListener('click', ()=>{
-        if(!askPIN('PIN per eliminare')) return;
-        s.value = 0; s.items = [];
-        renderPills(); recomputeStats(); renderCards();
-      });
-
-      card.querySelector('[data-add]').addEventListener('click', ()=>{
-        if(!askPIN('PIN per duplicare')) return;
-        const idx = data.sections.findIndex(x=>x.key===s.key);
-        const clone = JSON.parse(JSON.stringify(s));
-        data.sections.splice(idx+1,0,clone);
-        renderPills(); renderCards(); recomputeStats();
-      });
-
-      // info popup color themed
-      card.querySelector('[data-info]').addEventListener('click', ()=>{
-        alert(`${s.title}\n\n`+infoText(s.key));
-      });
-
-      els.cards.appendChild(card);
-    });
-  }
-
-  // Toggle all details
-  els.toggle.addEventListener('click', ()=>{
-    document.querySelectorAll('.cards details').forEach(d=>{
-      d.open = !d.open;
-    });
-  });
-
-  els.lock.addEventListener('click', ()=>{
-    if(askPIN('PIN per sbloccare le modifiche')) {
-      unlocked = true;
-      setTimeout(()=> unlocked=false, 90*1000); // auto-lock dopo 90s
-    }
-  });
-
-  renderPills(); renderCards(); recomputeStats();
-
-  // deep link da home: checklist.html#3S
-  const hash = location.hash.replace('#','').toUpperCase();
-  if(hash){
-    const t = document.getElementById(`card-${hash}`);
-    if(t) setTimeout(()=> t.scrollIntoView({behavior:'smooth',block:'start'}),100);
-  }
+function todayISO() {
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  return d.toISOString().slice(0,10);
 }
-
-/* ====== Utils ====== */
-function infoText(key){
-  switch(key){
-    case '1S': return 'Eliminare il superfluo, tenere solo ciò che serve.';
-    case '2S': return 'Un posto per tutto e tutto al suo posto.';
-    case '3S': return 'Pulire e prevenire lo sporco alla fonte.';
-    case '4S': return 'Standardizzare con regole e segnali chiari.';
-    case '5S': return 'Sostenere con disciplina e abitudini stabili.';
-    default: return '';
-  }
-}
-function isLate(iso){
-  if(!iso) return false;
-  // Regola richiesta: in ritardo se la data è prima di OGGI (anche ieri).
-  const d = new Date(iso); d.setHours(0,0,0,0);
-  const t = new Date();    t.setHours(0,0,0,0);
+function isLate(iso) {
+  // ritardo se data è precedente ad oggi
+  const t = new Date(todayISO());
+  const d = new Date(iso);
   return d < t;
 }
-
-/* ====== Export Supervisor (JSON) ====== */
-function exportForSupervisor(){
-  if(!askPIN('PIN per esportare')) return;
-  const d = loadData();
-  d.ch = getCH(); // assicurare nome aggiornato
-  const blob = new Blob([JSON.stringify(d,null,2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `${d.ch.replaceAll(' ','_')}.json`;
-  a.click();
-  URL.revokeObjectURL(a.href);
+function avg(values) {
+  if (!values.length) return 0;
+  const s = values.reduce((a,b)=>a+b,0);
+  return Math.round((s/values.length)*100)/100;
 }
+function percent(v){ return `${v}%`; }
+
+function askPIN(reason="") {
+  const dlg = document.getElementById("pinDialog");
+  const input = document.getElementById("pinInput");
+  input.value = "";
+  dlg.showModal();
+  return new Promise((resolve) => {
+    const ok = () => {
+      const state = getState();
+      const valid = input.value === (state.pin || DEFAULT_PIN);
+      dlg.close();
+      resolve(valid);
+      input.removeEventListener("keydown", onEnter);
+      btn.removeEventListener("click", onClick);
+    };
+    const onEnter = (e)=>{ if(e.key==="Enter"){ e.preventDefault(); btn.click(); } };
+    input.addEventListener("keydown", onEnter);
+    const btn = document.getElementById("pinConfirm");
+    const onClick = (e)=>{ e.preventDefault(); ok(); };
+    btn.addEventListener("click", onClick);
+  });
+}
+
+/* =========================
+   HOME PAGE (index.html)
+========================= */
+async function initHome(){
+  const state = getState();
+
+  // titolo dinamico
+  const title = document.getElementById("tit-andamento");
+  if (title) title.textContent = `Andamento ${state.channelName} — ${state.areaName}`;
+
+  // chart
+  const dataVals = [state.s1.value, state.s2.value, state.s3.value, state.s4.value, state.s5.value];
+  const colors = [COLORS.s1, COLORS.s2, COLORS.s3, COLORS.s4, COLORS.s5];
+  const labels = ["1S","2S","3S","4S","5S","Ritardi"];
+
+  const lateCount = ["s1","s2","s3","s4","s5"].reduce((n,k)=>n+(isLate(state[k].date)?1:0),0);
+
+  const ctx = document.getElementById("chart");
+  if (ctx) {
+    const chart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{
+          data: [...dataVals, lateCount],
+          backgroundColor: [...colors, COLORS.late],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display:false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ctx.dataIndex===5 ? `Ritardi: ${lateCount}` : `${ctx.raw}%`
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 20, callback: v=>`${v}%` },
+            grid: { color: "rgba(0,0,0,.06)" }
+          },
+          x: { grid: { display:false } }
+        }
+      }
+    });
+
+    // Etichette percentuali sopra (non mozzate)
+    chart.options.animation = false;
+    chart.update();
+    // posiziono col draw plugin semplice
+    Chart.register({
+      id: "valueLabel",
+      afterDatasetsDraw(c, args, pluginOptions){
+        const { ctx } = c;
+        ctx.save();
+        c.getDatasetMeta(0).data.forEach((bar, i)=>{
+          const val = c.data.datasets[0].data[i];
+          const txt = (i===5) ? `${val}` : `${val}%`;
+          ctx.font = "600 12px Inter,system-ui,Segoe UI,Roboto,Arial";
+          ctx.fillStyle = "#1f2937";
+          ctx.textAlign = "center";
+          ctx.fillText(txt, bar.x, bar.y - 6);
+        });
+      }
+    });
+    chart.update();
+  }
+
+  // chips S in ritardo
+  const lateWrap = document.getElementById("lateChips");
+  if (lateWrap) {
+    lateWrap.innerHTML = "";
+    ["s1","s2","s3","s4","s5"].forEach((k,idx)=>{
+      if (isLate(state[k].date)) {
+        const chip = document.createElement("button");
+        chip.className = `chip s${idx+1}`;
+        chip.textContent = `${idx+1}S in ritardo`;
+        chip.addEventListener("click", ()=> {
+          // vai alla checklist e scorri sulla sezione
+          location.href = `checklist.html#${k}`;
+        });
+        lateWrap.appendChild(chip);
+      }
+    });
+  }
+
+  // export (PIN)
+  const btnExport = document.getElementById("btn-export");
+  if (btnExport) {
+    btnExport.onclick = async () => {
+      const ok = await askPIN("export");
+      if (!ok) return;
+      const payload = {
+        channel: state.channelName,
+        area: state.areaName,
+        when: new Date().toISOString(),
+        s1: state.s1, s2: state.s2, s3: state.s3, s4: state.s4, s5: state.s5
+      };
+      const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `SKF-5S-${state.channelName}-${state.areaName}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+  }
+
+  // lock icon apre PIN per azioni protette “una tantum”
+  const btnLock = document.getElementById("btn-lock");
+  if (btnLock) {
+    btnLock.onclick = async () => {
+      const ok = await askPIN("unlock");
+      if (ok) {
+        // feedback rapido
+        btnLock.textContent = "✅";
+        setTimeout(()=> btnLock.textContent = "🔒", 1200);
+      }
+    };
+  }
+}
+
+/* =========================
+   CHECKLIST PAGE
+========================= */
+function sectionTemplate(key, title, color, info, state) {
+  const { value, date, note, who } = state[key];
+  const id = key;
+  const late = isLate(date);
+  return `
+  <section id="${id}" class="card s-card ${late?"late":""}">
+    <header class="s-head">
+      <div class="s-color" style="background:${color}"></div>
+      <h3><span class="s-name">${title}</span></h3>
+      <span class="badge">Valore: <b>${value}%</b></span>
+      <div class="head-actions">
+        <button class="icon-btn info" data-info="${key}" style="--dot:${color}">i</button>
+        <button class="icon-btn add" data-add="${key}">＋</button>
+      </div>
+    </header>
+
+    <details class="s-details" open>
+      <summary>Dettagli</summary>
+      <div class="s-body">
+        <label class="field">
+          <span>Responsabile / Operatore</span>
+          <input data-who="${key}" type="text" placeholder="Inserisci il nome..." value="${who||""}">
+        </label>
+
+        <label class="field">
+          <span>Note</span>
+          <textarea data-note="${key}" rows="3" placeholder="Note...">${note||""}</textarea>
+        </label>
+
+        <div class="row wrap gap">
+          <div class="score">
+            <button data-score="${key}" data-val="0" class="score-btn ${value===0?"sel":""}">0</button>
+            <button data-score="${key}" data-val="1" class="score-btn ${value===20?"sel":""}">1</button>
+            <button data-score="${key}" data-val="3" class="score-btn ${value===60?"sel":""}">3</button>
+            <button data-score="${key}" data-val="5" class="score-btn ${value===100?"sel":""}">5</button>
+          </div>
+
+          <label class="field w-auto">
+            <span>Data</span>
+            <input data-date="${key}" type="date" value="${date}">
+          </label>
+
+          <button class="danger icon-btn" data-del="${key}" title="Elimina (PIN)">🗑️</button>
+        </div>
+      </div>
+    </details>
+  </section>
+  `;
+}
+function scoreToPercent(n){
+  // 0 -> 0%, 1 -> 20%, 3->60%, 5->100%
+  switch(String(n)){
+    case "0": return 0;
+    case "1": return 20;
+    case "3": return 60;
+    case "5": return 100;
+    default: return 0;
+  }
+}
+
+async function initChecklist(){
+  const state = getState();
+
+  // badge riepilogo
+  const sum = document.getElementById("summaryBadges");
+  const vals = {
+    s1: state.s1.value, s2: state.s2.value, s3: state.s3.value, s4: state.s4.value, s5: state.s5.value
+  };
+  const makeBadge = (k, idx) =>
+    `<button class="pill sm s${idx}" data-jump="${k}">${LABELS[k]} ${vals[k]}%</button>`;
+
+  sum.innerHTML = ["s1","s2","s3","s4","s5"].map((k,i)=>makeBadge(k, i+1)).join("");
+
+  // toggle all
+  const toggle = document.getElementById("toggleAll");
+  let opened = true;
+  toggle.onclick = () => {
+    document.querySelectorAll(".s-details").forEach(d => d.open = !opened);
+    opened = !opened;
+  };
+
+  // render sezioni
+  const root = document.getElementById("sections");
+  root.innerHTML =
+    sectionTemplate("s1","1S — Selezionare",COLORS.s1,INFO.s1,state) +
+    sectionTemplate("s2","2S — Sistemare",COLORS.s2,INFO.s2,state) +
+    sectionTemplate("s3","3S — Splendere",COLORS.s3,INFO.s3,state) +
+    sectionTemplate("s4","4S — Standardizzare",COLORS.s4,INFO.s4,state) +
+    sectionTemplate("s5","5S — Sostenere",COLORS.s5,INFO.s5,state);
+
+  // click sui badge porta alla sezione
+  document.querySelectorAll("[data-jump]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const id = b.getAttribute("data-jump");
+      location.hash = id;
+      document.getElementById(id)?.scrollIntoView({behavior:"smooth", block:"center"});
+    });
+  });
+
+  // info popup
+  const dlg = document.getElementById("infoDialog");
+  const body = document.getElementById("infoBody");
+  document.querySelectorAll("[data-info]").forEach(btn=>{
+    btn.onclick = ()=>{
+      const k = btn.getAttribute("data-info");
+      body.innerHTML = `<div class="info-box ${k}">
+        <h4>${LABELS[k]} — Info</h4>
+        <p>${INFO[k]}</p>
+      </div>`;
+      dlg.showModal();
+    };
+  });
+
+  // campi vari
+  const updateValue = ()=>{
+    const st = getState();
+    // media “di fatto”: qui è la media delle 5S, ma le card mostrano il valore corrente
+    const vals = [st.s1.value, st.s2.value, st.s3.value, st.s4.value, st.s5.value];
+    document.getElementById("avgScore").textContent = percent(Math.round(avg(vals)));
+    const late = ["s1","s2","s3","s4","s5"].filter(k=>isLate(st[k].date)).length;
+    document.getElementById("lateCount").textContent = late;
+
+    // aggiorno pill riepilogo
+    ["s1","s2","s3","s4","s5"].forEach((k,i)=>{
+      const el = document.querySelector(`.pill[data-jump="${k}"]`);
+      if (el) el.textContent = `${LABELS[k]} ${st[k].value}%`;
+    });
+
+    // evidenzio ritardo card
+    ["s1","s2","s3","s4","s5"].forEach((k)=>{
+      const card = document.getElementById(k);
+      if (card) card.classList.toggle("late", isLate(st[k].date));
+    });
+  };
+
+  // nome operatore
+  document.querySelectorAll("[data-who]").forEach(inp=>{
+    inp.addEventListener("input", ()=>{
+      const k = inp.getAttribute("data-who");
+      const st = getState();
+      st[k].who = inp.value;
+      setState(st);
+    });
+  });
+  // note
+  document.querySelectorAll("[data-note]").forEach(inp=>{
+    inp.addEventListener("input", ()=>{
+      const k = inp.getAttribute("data-note");
+      const st = getState();
+      st[k].note = inp.value;
+      setState(st);
+    });
+  });
+  // data
+  document.querySelectorAll("[data-date]").forEach(inp=>{
+    inp.addEventListener("change", ()=>{
+      const k = inp.getAttribute("data-date");
+      const st = getState();
+      st[k].date = inp.value;
+      setState(st);
+      updateValue();
+    });
+  });
+  // punteggi (sempre liberi)
+  document.querySelectorAll("[data-score]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const k = btn.getAttribute("data-score");
+      const v = scoreToPercent(btn.getAttribute("data-val"));
+      const st = getState();
+      st[k].value = v;
+      setState(st);
+      // selezione visuale
+      btn.parentElement.querySelectorAll(".score-btn").forEach(b=>b.classList.remove("sel"));
+      btn.classList.add("sel");
+      // aggiorna badge valore card
+      const badge = document.querySelector(`#${k} .badge b`);
+      if (badge) badge.textContent = `${v}%`;
+      updateValue();
+    });
+  });
+
+  // elimina / duplica protetti da PIN
+  document.querySelectorAll("[data-del]").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const ok = await askPIN("delete");
+      if (!ok) return;
+      const k = btn.getAttribute("data-del");
+      const st = getState();
+      st[k] = { value: 0, date: todayISO(), note: "", who: "" };
+      setState(st);
+      // reset UI
+      document.querySelectorAll(`#${k} .score-btn`).forEach(b=>b.classList.remove("sel"));
+      document.querySelector(`#${k} [data-who]`).value = "";
+      document.querySelector(`#${k} [data-note]`).value = "";
+      document.querySelector(`#${k} [data-date]`).value = todayISO();
+      document.querySelector(`#${k} .badge b`).textContent = "0%";
+      updateValue();
+    });
+  });
+
+  document.querySelectorAll("[data-add]").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const ok = await askPIN("add");
+      if (!ok) return;
+      // duplicazione semplice: non creiamo nuove sezioni, ma potresti qui creare righe “voce”
+      alert("Voce duplicata (demo).");
+    });
+  });
+
+  updateValue();
+
+  // se arrivo con hash (#s1...) scroll alla sezione
+  if (location.hash) {
+    const el = document.getElementById(location.hash.replace("#",""));
+    el?.scrollIntoView({behavior:"smooth", block:"center"});
+  }
+}
+
+/* router minimo per pagina */
+document.addEventListener("DOMContentLoaded", ()=>{
+  const page = document.body.getAttribute("data-page");
+  if (page === "home") initHome();
+  if (page === "checklist") initChecklist();
+});
