@@ -1,7 +1,7 @@
 {
-  "name": "SKF 5S — Montaggio",
+  "name": "SKF 5S — Montaggio (CH 24)",
   "short_name": "SKF 5S",
-  "description": "Checklist 5S per il canale CH 24 — Montaggio",
+  "description": "Checklist 5S per CH 24 — Montaggio",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
