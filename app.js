@@ -2,7 +2,7 @@ const NS = 'skf5s:montaggio';
 const DATA_KEY = `${NS}:data`;
 const CH_NAME_KEY = `${NS}:chName`;
 const PIN_KEY = `${NS}:pin`;
-const DEFAULT_PIN = '2468';
+const DEFAULT_PIN = '6170';
 const getPin = () => localStorage.getItem(PIN_KEY) || DEFAULT_PIN;
 
 async function askPin(message='Inserisci PIN'){
