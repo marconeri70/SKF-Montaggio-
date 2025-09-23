@@ -11,20 +11,16 @@
   <link rel="icon" href="assets/pwa-192.png" />
 
   <link rel="stylesheet" href="style.css" />
-
-  <!-- Chart.js -->
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <!-- App -->
   <script defer src="app.js"></script>
 </head>
 <body data-page="home">
   <header class="appbar">
     <div class="left">
       <img class="skf-logo" src="assets/skf-logo.png" alt="SKF" />
-      <h1 class="brand">
-        <span class="s1">S</span><span class="s2">K</span><span class="s3">F</span>
-        <span class="space"></span>
-        <span class="s1">5</span><span class="s2">S</span>
+      <h1 class="brand brand--wordmark">
+        <span class="brand-skf">SKF</span>
+        <span class="brand-5s">5S</span>
       </h1>
     </div>
 
@@ -38,7 +34,7 @@
     <!-- Hero 5S -->
     <section class="card hero">
       <div class="hero-grid">
-        <img class="hero-img" src="assets/5s-hero.png" alt="Diagramma 5S" />
+        <img class="hero-img hero-img--big" src="assets/5s-hero.png" alt="Diagramma 5S" />
         <div>
           <h2>Cosa è 5S</h2>
           <ul class="fiveS">
@@ -82,11 +78,12 @@
       </label>
 
       <menu>
-        <button class="btn secondary" value="cancel">Annulla</button>
-        <button id="pinConfirmBtn" class="btn">Conferma</button>
+        <button class="btn secondary" value="cancel" type="button" id="pinCancel">Annulla</button>
+        <button id="pinConfirmBtn" class="btn" type="button">Conferma</button>
       </menu>
       <p class="hint">Il PIN è configurabile in <code>app.js</code> (CONFIG.PIN).</p>
     </form>
   </dialog>
 </body>
 </html>
+
