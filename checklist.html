@@ -1,53 +1,75 @@
 <!doctype html>
 <html lang="it">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Checklist 5S</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CH 24 — Montaggio • Checklist</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b5ed7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="assets/pwa-192.png">
+
+  <link rel="stylesheet" href="style.css">
+  <script defer src="app.js"></script>
 </head>
-<body>
+<body data-page="checklist">
   <header class="topbar">
-    <a class="btn ghost" href="index.html">← Indietro</a>
-    <h1><span data-ch></span></h1>
-    <button id="btnLock" class="btn ghost" title="Sblocca modifiche (PIN)">🔒</button>
+    <a class="ghost" href="index.html">← Indietro</a>
+    <h1>CH 24 — Montaggio</h1>
+    <button id="btn-lock" class="icon-btn" title="Sblocca azioni protette">🔒</button>
   </header>
 
   <main class="container">
-    <section class="grid">
-      <div class="stat card">
-        <div class="stat-title">Punteggio medio</div>
-        <div id="statAvg" class="stat-value">0%</div>
+    <section class="stats-grid">
+      <div class="stat">
+        <div class="label">Punteggio medio</div>
+        <div id="avgScore" class="value">0%</div>
       </div>
-      <div class="stat card">
-        <div class="stat-title">Azioni in ritardo</div>
-        <div id="statLate" class="stat-value">0</div>
+      <div class="stat">
+        <div class="label">Azioni in ritardo</div>
+        <div id="lateCount" class="value">0</div>
       </div>
     </section>
 
-    <!-- Pill riassunto 5S -->
-    <section class="card center">
-      <div id="pills" class="pill-row"></div>
-      <button id="btnToggleAll" class="btn primary">Comprimi / Espandi</button>
+    <section class="card">
+      <div id="summaryBadges" class="summary-badges"></div>
+      <button id="toggleAll" class="primary">Comprimi / Espandi</button>
     </section>
 
-    <!-- Schede 5S -->
-    <section id="cards" class="cards"></section>
+    <!-- Sezioni 5S -->
+    <div id="sections"></div>
   </main>
 
-  <footer class="foot">BUILD v1k-CH24</footer>
+  <!-- Modale PIN -->
+  <dialog id="pinDialog">
+    <form method="dialog" class="pin-form">
+      <h3>Autorizzazione</h3>
+      <p>Inserisci PIN per eseguire l’azione.</p>
+      <input id="pinInput" type="password" inputmode="numeric" placeholder="PIN" autocomplete="one-time-code" />
+      <div class="row">
+        <button value="cancel" class="ghost">Annulla</button>
+        <button id="pinConfirm" value="ok" class="primary">Conferma</button>
+      </div>
+    </form>
+  </dialog>
 
-  <script src="app.js"></script>
+  <!-- Tooltip i -->
+  <dialog id="infoDialog">
+    <div id="infoBody"></div>
+    <form method="dialog" class="row end">
+      <button class="primary">Chiudi</button>
+    </form>
+  </dialog>
+
+  <footer class="foot">BUILD vMont-CH24</footer>
+
   <script>
-    renderCH();
-    mountChecklist({
-      pillsEl: 'pills',
-      cardsEl: 'cards',
-      avgEl: 'statAvg',
-      lateEl: 'statLate',
-      toggleBtn: 'btnToggleAll',
-      lockBtn: 'btnLock'
-    });
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(console.error);
+    }
   </script>
 </body>
 </html>
