@@ -1,61 +1,73 @@
 <!doctype html>
 <html lang="it">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>SKF 5S · CH 24 — Montaggio</title>
-  <link rel="icon" href="assets/skf-512.png">
-  <link rel="stylesheet" href="style.css" />
-  <!-- Chart.js via CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>SKF 5S — Montaggio</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2c6bed">
+  <link rel="icon" href="assets/skf-192.png">
+  <link rel="apple-touch-icon" href="assets/skf-192.png">
+
+  <link rel="stylesheet" href="style.css">
+  <script>navigator.serviceWorker?.register('sw.js');</script>
 </head>
-<body class="page">
-  <header class="topbar">
+<body>
+  <header class="appbar">
     <div class="brand">
-      <img src="assets/skf-512.png" alt="SKF" />
-      <h1 class="brand-title">
-        <span class="s1">S</span><span class="s2">K</span><span class="s3">F</span>
-        <span>&nbsp;</span>
-        <span class="s1">5</span><span class="s2">S</span>
-      </h1>
+      <img class="brand-logo" src="assets/skf-192.png" alt="SKF">
+      <div class="brand-title"><span class="c1">S</span><span class="c2">K</span><span class="c3">F</span>&nbsp;<span class="c1s">5</span><span class="c2s">S</span></div>
     </div>
-    <nav class="actions">
-      <a class="btn link" href="checklist.html">Vai alla checklist →</a>
-    </nav>
+    <a class="btn ghost" href="checklist.html">Vai alla checklist →</a>
+    <button id="btn-lock" class="btn lock" title="Modifica nome canale"></button>
   </header>
 
   <main class="container">
     <!-- COSA È 5S -->
-    <section class="card grid-hero">
-      <div class="hero-img">
-        <img src="assets/5s-hero.png" alt="5S" />
-      </div>
-      <div class="hero-txt">
-        <h2>Cosa è 5S</h2>
-        <ul class="bullets">
-          <li><span class="badge s1">1S Selezionare</span> — Eliminare il superfluo.</li>
-          <li><span class="badge s2">2S Sistemare</span> — Un posto per tutto e tutto al suo posto.</li>
-          <li><span class="badge s3">3S Splendere</span> — Pulire e prevenire lo sporco.</li>
-          <li><span class="badge s4">4S Standardizzare</span> — Regole e segnali chiari.</li>
-          <li><span class="badge s5">5S Sostenere</span> — Abitudine e miglioramento continuo.</li>
-        </ul>
+    <section class="card">
+      <div class="grid hero">
+        <div class="hero-img-wrap">
+          <img src="assets/5s-hero.png" alt="5S" class="hero-img">
+        </div>
+        <div>
+          <h2>Cosa è 5S</h2>
+          <ul class="list5s">
+            <li><span class="tag s1">1S Selezionare</span> — Eliminare il superfluo.</li>
+            <li><span class="tag s2">2S Sistemare</span> — Un posto per tutto e tutto al suo posto.</li>
+            <li><span class="tag s3">3S Splendere</span> — Pulire e prevenire lo sporco.</li>
+            <li><span class="tag s4">4S Standardizzare</span> — Regole e segnali chiari.</li>
+            <li><span class="tag s5">5S Sostenere</span> — Abitudine e miglioramento continuo.</li>
+          </ul>
+        </div>
       </div>
     </section>
 
     <!-- GRAFICO -->
     <section class="card">
-      <h2>Andamento CH 24 — Montaggio</h2>
-      <canvas id="chart" height="140"></canvas>
-      <div id="lateChips" class="late-chips"></div>
-      <div class="row end">
-        <a class="btn ghost" href="checklist.html">Apri checklist</a>
+      <h2>Andamento <span data-ch>CH 24 — Montaggio</span></h2>
+      <canvas id="chart" height="260" aria-label="Grafico 5S"></canvas>
+      <div id="lateButtons" class="late-wrap"></div>
+      <div class="row">
+        <button id="btn-export" class="btn primary">Esporta dati per Supervisore (PIN)</button>
       </div>
     </section>
   </main>
 
-  <footer class="foot">
-    BUILD montaggio-v1
-  </footer>
+  <!-- Dialog PIN riusabile -->
+  <dialog id="dlg-pin">
+    <form method="dialog" class="dlg">
+      <h3>Sicurezza</h3>
+      <p id="pin-msg">Inserisci PIN per procedere</p>
+      <input id="pin-input" type="password" inputmode="numeric" maxlength="6" class="input" placeholder="PIN" autofocus>
+      <div class="row end gap">
+        <button class="btn">Annulla</button>
+        <button id="pin-ok" class="btn primary" value="ok">OK</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer class="footer">BUILD Montaggio</footer>
 
   <script src="app.js"></script>
 </body>
