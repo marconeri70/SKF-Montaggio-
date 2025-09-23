@@ -1,280 +1,221 @@
-/* Checklist Montaggio · CH 24
-   Funzioni:
-   - Stato in localStorage
-   - Riepilogo 5S con percentuali in tempo reale (clicca e salta alla sezione)
-   - Punteggio per voce 0/1/3/5 (bottoni azzurri)
-   - Data: evidenzia ritardo se < oggi; inoltre se si "salta un giorno"
-     rispetto a lastEntry[S] -> segna overdue alla riapertura
-   - Popup "i" colorato a tema S
-   - Comprimi / Espandi
-   - PIN su azioni sensibili: duplicazione (+) e cestino (rosso) – chiede PIN ogni volta
-*/
+/* ===== Namespace Montaggio ===== */
+const NS = 'skf5s:montaggio';
+const STORAGE = `${NS}:data`;
+const CH_NAME_KEY = `${NS}:chName`;
+const PIN_KEY = `${NS}:pin`;
+const DEFAULT_PIN = '2468';
+const SECTIONS = ['1S','2S','3S','4S','5S'];
 
-const STORAGE_KEY = 'skf5s:montaggio-ch24';
-const PIN_CODE = '2486'; // PIN reale (richiesto ad ogni azione sensibile)
-
-const COLORS = {
-  '1S':'#7c4dff','2S':'#ef5350','3S':'#f2b532','4S':'#22c55e','5S':'#1e54ff'
-};
-const DESC = {
-  '1S':'Eliminare ciò che non serve. Rimuovi il superfluo e crea un’area essenziale.',
-  '2S':'Un posto per tutto e tutto al suo posto. Organizza in modo visibile.',
-  '3S':'Pulire e prevenire lo sporco. Mantieni cause e fonti sotto controllo.',
-  '4S':'Regole e segnali chiari. Standard e visual management.',
-  '5S':'Disciplina e miglioramento continuo. Abitudine alla verifica.'
-};
-
-function todayStr(){
-  const d = new Date();
-  return d.toISOString().slice(0,10);
-}
-function parseDate(s){ return new Date(s+'T00:00:00'); }
-function daysBetween(a,b){
-  const A = parseDate(a), B = parseDate(b);
-  return Math.round((B-A)/(1000*60*60*24));
+const getPin = () => localStorage.getItem(PIN_KEY) || DEFAULT_PIN;
+async function askPin(message='Inserisci PIN'){
+  const dlg = document.getElementById('dlg-pin');
+  document.getElementById('pin-msg').textContent = message;
+  document.getElementById('pin-input').value='';
+  dlg.showModal();
+  const ok = await new Promise(res=>{
+    const go = document.getElementById('pin-ok');
+    const on = ()=>{ dlg.close(); res(true); };
+    go.addEventListener('click', on, {once:true});
+    dlg.addEventListener('close', ()=>res(false), {once:true});
+  });
+  if(!ok) return false;
+  return document.getElementById('pin-input').value === getPin();
 }
 
-function loadState(){
+/* ===== Utils ===== */
+const todayISO = () => new Date().toISOString().slice(0,10);
+function daysBetween(aISO,bISO){
+  const a = new Date(aISO+'T00:00:00'), b = new Date(bISO+'T00:00:00');
+  return Math.round((b-a)/86400000);
+}
+function isOverdue(dateISO, lastSavedISO){
+  // in ritardo se: data < oggi  OR  salto di almeno 1 giorno rispetto all'ultima rilevazione
+  if(dateISO < todayISO()) return true;
+  if(lastSavedISO && daysBetween(lastSavedISO, todayISO()) > 1) return true;
+  return false;
+}
+
+/* ===== Stato ===== */
+function load(){
   try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if(!raw) return null;
-    return JSON.parse(raw);
-  }catch(e){ return null; }
+    return JSON.parse(localStorage.getItem(STORAGE)) || {};
+  }catch{ localStorage.removeItem(STORAGE); return {}; }
 }
-function saveState(s){ localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+function save(s){
+  localStorage.setItem(STORAGE, JSON.stringify(s));
+  // notifica alla home per aggiornare il grafico
+  localStorage.setItem(STORAGE, JSON.stringify(s)); // doppio set per trigger storage
+}
 
 function ensureState(){
-  const s = loadState();
-  if(s) return s;
-  const init = {
-    area:'CH 24', reparto:'Montaggio',
-    scores:{'1S':0,'2S':0,'3S':0,'4S':0,'5S':0},
-    items:{'1S':[newItem()], '2S':[newItem()], '3S':[newItem()], '4S':[newItem()], '5S':[newItem()]},
-    lastEntry:{}
-  };
-  saveState(init);
-  return init;
-}
-
-function newItem(){
-  return { title:'', operator:'', notes:'', date: todayStr(), score:null, overdue:false };
-}
-
-function askPin(){
-  const v = prompt('Inserisci PIN per procedere:');
-  return v === PIN_CODE;
-}
-
-function renderSummary(state){
-  const sum = document.getElementById('summary');
-  sum.innerHTML = ['1S','2S','3S','4S','5S'].map(S=>{
-    const v = state.scores[S]||0;
-    const color = COLORS[S];
-    return `<button class="chip ${S.toLowerCase()}" style="box-shadow:inset 0 0 0 2px ${color}" data-jump="${S}">${S} ${v}%</button>`;
-  }).join('');
-  sum.querySelectorAll('[data-jump]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const id = btn.getAttribute('data-jump');
-      document.getElementById('sec-'+id)?.scrollIntoView({behavior:'smooth',block:'start'});
-    });
-  });
-}
-
-function avgOf(items){
-  const nums = items.map(it=> typeof it.score==='number' ? it.score : null).filter(v=> v!==null);
-  if(!nums.length) return 0;
-  // Trasforma 0/1/3/5 in %
-  const perc = nums.map(v => Math.round((v/5)*100));
-  return Math.round( perc.reduce((a,b)=>a+b,0)/perc.length );
-}
-
-function computeAll(state){
-  // aggiorna score per S
-  for(const S of ['1S','2S','3S','4S','5S']){
-    state.scores[S] = avgOf(state.items[S]||[]);
-  }
-  // kpi in alto
-  const avg = Math.round((Object.values(state.scores).reduce((a,b)=>a+b,0))/5);
-  document.getElementById('avgScore').textContent = `${avg}%`;
-
-  const late = countLate(state);
-  document.getElementById('lateCount').textContent = late;
-}
-
-function countLate(state){
-  let n=0;
-  for(const S of ['1S','2S','3S','4S','5S']){
-    const arr = state.items[S]||[];
-    if(arr.some(it=> it.overdue===true)) n++;
-  }
-  return n;
-}
-
-function checkOverdueFlags(state){
-  const t = todayStr();
-  for(const S of ['1S','2S','3S','4S','5S']){
-    const arr = state.items[S]||[];
-    // se l'ultima data compilata è più vecchia di 1 giorno -> ritardo
-    const last = state.lastEntry[S];
-    if(last && daysBetween(last, t) > 1){
-      // segna come overdue la prima voce aperta
-      if(arr.length){ arr[0].overdue = true; }
-    }
-    // inoltre: se una voce ha data < oggi => overdue
-    arr.forEach(it=>{
-      it.overdue = (it.date && it.date < t) ? true : it.overdue;
+  const s = load();
+  if(!s.sections){
+    s.sections = {};
+    SECTIONS.forEach(k=>{
+      s.sections[k] = [{ score:0, notes:'', owner:'', date: todayISO(), lastSaved: todayISO() }];
     });
   }
+  return s;
 }
 
-function openInfo(S){
-  const dlg = document.getElementById('infoDialog');
-  document.getElementById('infoDot').style.background = COLORS[S];
-  document.getElementById('infoTitle').textContent = `${S} — ${['','Selezionare','Sistemare','Splendere','Standardizzare','Sostenere'][+S[0]]}`;
-  document.getElementById('infoText').textContent = DESC[S];
-  dlg.showModal();
+/* ===== CH name render ===== */
+function renderCH(){
+  const ch = localStorage.getItem(CH_NAME_KEY) || 'CH 24 — Montaggio';
+  document.querySelectorAll('[data-ch]').forEach(el=>el.textContent=ch);
 }
 
-function renderSections(state){
-  const host = document.getElementById('sections');
-  host.innerHTML = '';
+/* ===== UI ===== */
+function sColor(k){ return ({'1S':'s1','2S':'s2','3S':'s3','4S':'s4','5S':'s5'})[k]; }
+function sHex(k){ return ({'1S':'#7e57c2','2S':'#ef5350','3S':'#f1b21a','4S':'#22c55e','5S':'#2563eb'})[k]; }
+function sText(k){
+  return ({
+    '1S':'Eliminare il superfluo.',
+    '2S':'Un posto per tutto e tutto al suo posto.',
+    '3S':'Pulire e prevenire lo sporco.',
+    '4S':'Regole e segnali chiari.',
+    '5S':'Abitudine e miglioramento continuo.'
+  })[k];
+}
 
-  for(const S of ['1S','2S','3S','4S','5S']){
-    const items = state.items[S]||[];
-    const color = COLORS[S];
-    const sec = document.createElement('div');
-    sec.className = `card s-card ${S.toLowerCase()}`;
-    sec.id = `sec-${S}`;
+function sectionCard(key, items, state){
+  const wrap = document.createElement('section');
+  wrap.className = 's-card';
+  wrap.id = key;
 
-    const titleTxt = {
-      '1S':'1S — Selezionare',
-      '2S':'2S — Sistemare',
-      '3S':'3S — Splendere',
-      '4S':'4S — Standardizzare',
-      '5S':'5S — Sostenere'
-    }[S];
+  const last = items[items.length-1] || {score:0,date:todayISO(),lastSaved:todayISO()};
+  const val = Math.round((last.score/5)*100);
+  const overdue = isOverdue(last.date, last.lastSaved);
 
-    const head = document.createElement('div');
-    head.className = 's-head';
-    head.innerHTML = `
-      <div style="width:34px;height:14px;border-radius:6px;background:${color}"></div>
-      <div class="s-title ${S.toLowerCase()}">${titleTxt}</div>
-      <div class="s-tools">
-        <div class="s-val">Valore: <b>${state.scores[S]||0}%</b></div>
-        <button class="s-btn i-btn" title="Info">i</button>
-        <button class="s-btn plus-btn" title="Duplica voce">+</button>
+  wrap.innerHTML = `
+    <div class="s-head ${overdue?'overdue':''}">
+      <div class="s-bar ${sColor(key)}c"></div>
+      <div class="s-title ${sColor(key)}txt">${key} — ${labelOf(key)}</div>
+      <div class="s-val">Valore: ${val}%</div>
+      <div class="s-actions">
+        <button class="btn round small info-btn" title="Info ${key}" style="color:${sHex(key)}">i</button>
+        <button class="btn round small" title="Duplica" id="dup">＋</button>
+        <button class="btn round small trash" title="Elimina" id="del">🗑</button>
       </div>
-    `;
-    sec.appendChild(head);
-
-    const details = document.createElement('details');
-    details.className = 'details';
-    details.open = true;
-    details.innerHTML = `<summary>Dettagli</summary>`;
-    const body = document.createElement('div');
-    body.className = 'body';
-
-    items.forEach((it, idx)=>{
-      const card = document.createElement('div');
-      card.className = `card ${it.overdue?'overdue':''}`;
-      card.style.marginTop = '10px';
-
-      card.innerHTML = `
-        <div class="row">
-          <input class="input" data-key="operator" placeholder="Responsabile / Operatore" value="${it.operator||''}" />
-        </div>
-        <div class="row" style="margin-top:8px">
-          <textarea class="input" data-key="notes" placeholder="Note...">${it.notes||''}</textarea>
-        </div>
-        <div class="row" style="margin-top:8px;flex-wrap:wrap">
+    </div>
+    <div class="s-body">
+      <details class="mt8" open>
+        <summary>Dettagli</summary>
+        <label class="mt8">Responsabile / Operatore
+          <input class="input owner" placeholder="Inserisci il nome..." value="${escapeHTML(last.owner||'')}">
+        </label>
+        <label class="mt8">Note
+          <textarea class="notes" placeholder="Note...">${escapeHTML(last.notes||'')}</textarea>
+        </label>
+        <div class="row gap mt8">
           <div class="score">
-            <div class="p ${it.score===0?'active':''}" data-score="0">0</div>
-            <div class="p ${it.score===1?'active':''}" data-score="1">1</div>
-            <div class="p ${it.score===3?'active':''}" data-score="3">3</div>
-            <div class="p ${it.score===5?'active':''}" data-score="5">5</div>
+            ${[0,1,3,5].map(p=>`<div class="p ${p===last.score?'active':''}" data-score="${p}">${p}</div>`).join('')}
           </div>
-          <input type="date" class="input" data-key="date" value="${it.date||todayStr()}" style="max-width:210px" />
-          <button class="s-btn trash-btn" title="Elimina voce">🗑</button>
+          <input type="date" class="input date" value="${last.date}">
         </div>
-      `;
-      // event handlers
-      // testo
-      card.querySelectorAll('[data-key]').forEach(el=>{
-        el.addEventListener('change', e=>{
-          const key = el.getAttribute('data-key');
-          it[key] = el.value;
-          if(key==='date'){
-            const t = todayStr();
-            it.overdue = it.date < t;
-            card.classList.toggle('overdue', it.overdue);
-          }
-          saveState(state); computeAll(state); renderSummary(state);
-        });
-      });
-      // punteggi (chiedi PIN per ogni click che modifica)
-      card.querySelectorAll('.p').forEach(btn=>{
-        btn.addEventListener('click', ()=>{
-          const val = +btn.getAttribute('data-score');
-          if(it.score === val) return;
-          if(!askPin()) return;
-          it.score = val;
-          state.lastEntry[S] = todayStr();
-          saveState(state);
-          renderAll(); // ricalcola e ridisegna
-        });
-      });
-      // cestino con PIN
-      card.querySelector('.trash-btn').addEventListener('click', ()=>{
-        if(!askPin()) return;
-        items.splice(idx,1);
-        if(!items.length) items.push(newItem());
-        saveState(state);
-        renderAll();
-      });
+      </details>
+    </div>
+  `;
 
-      body.appendChild(card);
-    });
+  // handlers
+  wrap.querySelector('.info-btn').onclick = ()=>{
+    const dlg = document.getElementById('dlg-info');
+    const t = document.getElementById('info-title');
+    const b = document.getElementById('info-body');
+    t.textContent = `${key} — ${labelOf(key)}`;
+    t.style.color = sHex(key);
+    b.textContent = sText(key);
+    dlg.showModal();
+  };
 
-    details.appendChild(body);
-    sec.appendChild(details);
-    host.appendChild(sec);
+  wrap.querySelector('#dup').onclick = async ()=>{
+    if(!(await askPin('PIN per duplicare la scheda'))) return;
+    items.push({score:last.score,notes:last.notes,owner:last.owner,date:todayISO(),lastSaved:todayISO()});
+    save(state); render();
+  };
 
-    // head buttons
-    head.querySelector('.i-btn').addEventListener('click', ()=> openInfo(S));
-    head.querySelector('.plus-btn').addEventListener('click', ()=>{
-      if(!askPin()) return;
-      items.push(newItem());
-      saveState(state);
-      renderAll();
-    });
+  wrap.querySelector('#del').onclick = async ()=>{
+    if(!(await askPin('PIN per eliminare la scheda'))) return;
+    if(items.length>1){ items.pop(); save(state); render(); }
+  };
+
+  wrap.querySelectorAll('.score .p').forEach(p=>{
+    p.onclick = ()=>{
+      const v = Number(p.dataset.score);
+      last.score = v;
+      last.lastSaved = todayISO();
+      save(state); render();
+    };
   });
 
-  // hash -> vai alla S
-  const hash = location.hash.replace('#','');
-  if(hash && document.getElementById('sec-'+hash)){
-    document.getElementById('sec-'+hash).scrollIntoView({behavior:'smooth'});
-  }
+  wrap.querySelector('.owner').oninput = e => { last.owner = e.target.value; save(state); };
+  wrap.querySelector('.notes').oninput = e => { last.notes = e.target.value; save(state); };
+  wrap.querySelector('.date').onchange = e => { last.date = e.target.value; save(state); render(); };
+
+  return wrap;
 }
 
-function renderAll(){
+function labelOf(key){
+  return ({'1S':'Selezionare','2S':'Sistemare','3S':'Splendere','4S':'Standardizzare','5S':'Sostenere'})[key];
+}
+
+function escapeHTML(s){ return (s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+
+function render(){
+  renderCH();
   const state = ensureState();
-  checkOverdueFlags(state);
-  computeAll(state);
-  renderSummary(state);
-  renderSections(state);
-  saveState(state);
+  const wrap = document.getElementById('sections');
+  wrap.innerHTML = '';
+  let total=0, cnt=0;
+  const lateSet = new Set();
+
+  SECTIONS.forEach(k=>{
+    const items = state.sections[k];
+    const card = sectionCard(k, items, state);
+    wrap.appendChild(card);
+
+    const last = items[items.length-1];
+    total += (last.score/5)*100; cnt++;
+    if(isOverdue(last.date, last.lastSaved)) lateSet.add(k);
+  });
+
+  // KPI
+  document.getElementById('avg').textContent = `${Math.round(total/cnt)}%`;
+  document.getElementById('late').textContent = lateSet.size;
+
+  // Badges top & click-to-scroll
+  const sm = document.getElementById('summary'); sm.innerHTML='';
+  SECTIONS.forEach(k=>{
+    const last = state.sections[k].slice(-1)[0];
+    const perc = Math.round((last.score/5)*100);
+    const a = document.createElement('a');
+    a.className = `tag ${sColor(k)} ${lateSet.has(k)?'outline':''}`;
+    a.style.border = `2px solid ${sHex(k)}`;
+    a.textContent = `${k} ${perc}%`;
+    a.href = `#${k}`;
+    sm.appendChild(a);
+  });
+
+  // aggiorna storage per la home
+  const pack = {scores:{}, late:[...lateSet]};
+  SECTIONS.forEach(k=>{
+    const last = state.sections[k].slice(-1)[0];
+    pack.scores[k] = Math.round((last.score/5)*100);
+  });
+  localStorage.setItem(STORAGE, JSON.stringify(pack));
+}
+
+// comprimi/espandi
+function toggleAll(){
+  const ds = document.querySelectorAll('details');
+  const isOpen = [...ds].some(d=>d.open);
+  ds.forEach(d=>d.open = !isOpen);
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
-  // toggle all
-  document.getElementById('toggleAll').addEventListener('click', ()=>{
-    document.querySelectorAll('.details').forEach(d=> d.open = !d.open);
-  });
-  // lock button: chiede PIN prima di ogni vera azione – lo manteniamo come “icona informativa”
-  const lockBtn = document.getElementById('lockBtn');
-  lockBtn.addEventListener('click', ()=>{
-    alert('Le modifiche richiedono PIN e vengono richieste al momento dell’azione (punteggi, duplica, elimina).');
-  });
-
-  renderAll();
+  render();
+  document.getElementById('toggleAll').onclick = toggleAll;
+  document.getElementById('btn-lock').onclick = async ()=>{
+    const ok = await askPin('PIN richiesto per azioni protette');
+    if(ok) alert('Sbloccato per questa azione.');
+  };
 });
