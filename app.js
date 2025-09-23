@@ -1,447 +1,399 @@
-/* ===============================
-   SKF 5S — Montaggio (CH 24)
-   Funzioni condivise home/checklist
-================================= */
-const APP_KEY = "skf5s-montaggio-ch24";
-const PIN_STORAGE = "skf5s-pin"; // per lock azioni protette
-const DEFAULT_PIN = "2468"; // cambia se vuoi
+/* ==============
+   SKF 5S – Montaggio
+   Stato + Logica pagine
+   ============== */
+
+const CONFIG = {
+  STORAGE_KEY: "skf5s-montaggio",
+  DEFAULT_CHANNEL: "CH 24",
+  DEFAULT_AREA: "Montaggio",
+  // PIN configurabile: cambia qui e salva
+  PIN: "2468",
+  // testo punteggi
+  SCORE_HELP:
+    "0 = Non conforme • 1 = Parzialmente • 3 = Quasi • 5 = Conforme",
+  // Info per la ❓ di ogni S
+  INFO: {
+    s1: "Eliminare ciò che non serve. Rimuovi superfluo e crea area di lavoro essenziale, ordinata e sicura.",
+    s2: "Un posto per tutto e tutto al suo posto. Ordina, etichetta e rendi evidente.",
+    s3: "Pulire e prevenire lo sporco. Trova la causa e rimuovila.",
+    s4: "Standardizzare: regole, procedure e segnali chiari e visivi.",
+    s5: "Sostenere: disciplina, audit e miglioramento continuo."
+  }
+};
 
 const COLORS = {
-  s1: "#7b4ede", // viola SKF
-  s2: "#ef5350", // rosso
-  s3: "#f3b318", // giallo
-  s4: "#2eb36a", // verde
-  s5: "#2563eb", // blu
-  late: "#e11d48" // ritardi
-};
-const LABELS = {
-  s1: "1S",
-  s2: "2S",
-  s3: "3S",
-  s4: "4S",
-  s5: "5S"
-};
-const INFO = {
-  s1: "Eliminare ciò che non serve. Rimuovi superfluo e crea area di lavoro essenziale, ordinata e sicura.",
-  s2: "Un posto per tutto e tutto al suo posto.",
-  s3: "Pulire e rimuovere le cause dello sporco.",
-  s4: "Regole e segnali visivi chiari.",
-  s5: "Disciplina, abitudine e miglioramento continuo."
+  s1: "#6f49d9", s2: "#e45757", s3: "#f0b429", s4: "#2ea84f", s5: "#2f6de3"
 };
 
-function getState() {
-  const saved = localStorage.getItem(APP_KEY);
-  if (saved) return JSON.parse(saved);
-  // stato iniziale
-  const blankS = () => ({ value: 0, date: todayISO(), note: "", who: "" });
-  const state = {
-    channelName: "CH 24",
-    areaName: "Montaggio",
-    pin: DEFAULT_PIN,
-    s1: { ...blankS() },
-    s2: { ...blankS() },
-    s3: { ...blankS() },
-    s4: { ...blankS() },
-    s5: { ...blankS() }
+function loadState() {
+  const raw = localStorage.getItem(CONFIG.STORAGE_KEY);
+  if (raw) return JSON.parse(raw);
+  // Stato iniziale
+  const init = {
+    channel: CONFIG.DEFAULT_CHANNEL,
+    area: CONFIG.DEFAULT_AREA,
+    unlocked: false,
+    // valori % iniziali e schede
+    scores: { s1: 0, s2: 0, s3: 0, s4: 0, s5: 0 },
+    sheets: {
+      s1: { entries: [{ who: "", notes: "", date: todayStr(), score: 0 }] },
+      s2: { entries: [{ who: "", notes: "", date: todayStr(), score: 0 }] },
+      s3: { entries: [{ who: "", notes: "", date: todayStr(), score: 0 }] },
+      s4: { entries: [{ who: "", notes: "", date: todayStr(), score: 0 }] },
+      s5: { entries: [{ who: "", notes: "", date: todayStr(), score: 0 }] }
+    }
   };
-  localStorage.setItem(APP_KEY, JSON.stringify(state));
-  return state;
+  localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(init));
+  return init;
 }
-function setState(patch) {
-  const state = { ...getState(), ...patch };
-  localStorage.setItem(APP_KEY, JSON.stringify(state));
-  return state;
-}
-function todayISO() {
-  const d = new Date();
-  d.setHours(0,0,0,0);
-  return d.toISOString().slice(0,10);
-}
-function isLate(iso) {
-  // ritardo se data è precedente ad oggi
-  const t = new Date(todayISO());
-  const d = new Date(iso);
-  return d < t;
-}
-function avg(values) {
-  if (!values.length) return 0;
-  const s = values.reduce((a,b)=>a+b,0);
-  return Math.round((s/values.length)*100)/100;
-}
-function percent(v){ return `${v}%`; }
-
-function askPIN(reason="") {
-  const dlg = document.getElementById("pinDialog");
-  const input = document.getElementById("pinInput");
-  input.value = "";
-  dlg.showModal();
-  return new Promise((resolve) => {
-    const ok = () => {
-      const state = getState();
-      const valid = input.value === (state.pin || DEFAULT_PIN);
-      dlg.close();
-      resolve(valid);
-      input.removeEventListener("keydown", onEnter);
-      btn.removeEventListener("click", onClick);
-    };
-    const onEnter = (e)=>{ if(e.key==="Enter"){ e.preventDefault(); btn.click(); } };
-    input.addEventListener("keydown", onEnter);
-    const btn = document.getElementById("pinConfirm");
-    const onClick = (e)=>{ e.preventDefault(); ok(); };
-    btn.addEventListener("click", onClick);
-  });
+function saveState(st){ localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(st)); }
+function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function isLate(dateStr){
+  // Ritardo se la data è antecedente a OGGI
+  try{
+    const d = new Date(dateStr+"T00:00:00");
+    const t = new Date(todayStr()+"T00:00:00");
+    return d < t;
+  }catch{ return false; }
 }
 
-/* =========================
-   HOME PAGE (index.html)
-========================= */
-async function initHome(){
-  const state = getState();
+const state = loadState();
 
-  // titolo dinamico
-  const title = document.getElementById("tit-andamento");
-  if (title) title.textContent = `Andamento ${state.channelName} — ${state.areaName}`;
-
-  // chart
-  const dataVals = [state.s1.value, state.s2.value, state.s3.value, state.s4.value, state.s5.value];
-  const colors = [COLORS.s1, COLORS.s2, COLORS.s3, COLORS.s4, COLORS.s5];
-  const labels = ["1S","2S","3S","4S","5S","Ritardi"];
-
-  const lateCount = ["s1","s2","s3","s4","s5"].reduce((n,k)=>n+(isLate(state[k].date)?1:0),0);
-
-  const ctx = document.getElementById("chart");
-  if (ctx) {
-    const chart = new Chart(ctx, {
-      type: "bar",
-      data: {
-        labels,
-        datasets: [{
-          data: [...dataVals, lateCount],
-          backgroundColor: [...colors, COLORS.late],
-          borderWidth: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display:false },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => ctx.dataIndex===5 ? `Ritardi: ${lateCount}` : `${ctx.raw}%`
-            }
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { stepSize: 20, callback: v=>`${v}%` },
-            grid: { color: "rgba(0,0,0,.06)" }
-          },
-          x: { grid: { display:false } }
-        }
-      }
-    });
-
-    // Etichette percentuali sopra (non mozzate)
-    chart.options.animation = false;
-    chart.update();
-    // posiziono col draw plugin semplice
-    Chart.register({
-      id: "valueLabel",
-      afterDatasetsDraw(c, args, pluginOptions){
-        const { ctx } = c;
-        ctx.save();
-        c.getDatasetMeta(0).data.forEach((bar, i)=>{
-          const val = c.data.datasets[0].data[i];
-          const txt = (i===5) ? `${val}` : `${val}%`;
-          ctx.font = "600 12px Inter,system-ui,Segoe UI,Roboto,Arial";
-          ctx.fillStyle = "#1f2937";
-          ctx.textAlign = "center";
-          ctx.fillText(txt, bar.x, bar.y - 6);
-        });
-      }
-    });
-    chart.update();
-  }
-
-  // chips S in ritardo
-  const lateWrap = document.getElementById("lateChips");
-  if (lateWrap) {
-    lateWrap.innerHTML = "";
-    ["s1","s2","s3","s4","s5"].forEach((k,idx)=>{
-      if (isLate(state[k].date)) {
-        const chip = document.createElement("button");
-        chip.className = `chip s${idx+1}`;
-        chip.textContent = `${idx+1}S in ritardo`;
-        chip.addEventListener("click", ()=> {
-          // vai alla checklist e scorri sulla sezione
-          location.href = `checklist.html#${k}`;
-        });
-        lateWrap.appendChild(chip);
-      }
-    });
-  }
-
-  // export (PIN)
-  const btnExport = document.getElementById("btn-export");
-  if (btnExport) {
-    btnExport.onclick = async () => {
-      const ok = await askPIN("export");
-      if (!ok) return;
-      const payload = {
-        channel: state.channelName,
-        area: state.areaName,
-        when: new Date().toISOString(),
-        s1: state.s1, s2: state.s2, s3: state.s3, s4: state.s4, s5: state.s5
-      };
-      const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `SKF-5S-${state.channelName}-${state.areaName}.json`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    };
-  }
-
-  // lock icon apre PIN per azioni protette “una tantum”
-  const btnLock = document.getElementById("btn-lock");
-  if (btnLock) {
-    btnLock.onclick = async () => {
-      const ok = await askPIN("unlock");
-      if (ok) {
-        // feedback rapido
-        btnLock.textContent = "✅";
-        setTimeout(()=> btnLock.textContent = "🔒", 1200);
-      }
-    };
-  }
-}
-
-/* =========================
-   CHECKLIST PAGE
-========================= */
-function sectionTemplate(key, title, color, info, state) {
-  const { value, date, note, who } = state[key];
-  const id = key;
-  const late = isLate(date);
-  return `
-  <section id="${id}" class="card s-card ${late?"late":""}">
-    <header class="s-head">
-      <div class="s-color" style="background:${color}"></div>
-      <h3><span class="s-name">${title}</span></h3>
-      <span class="badge">Valore: <b>${value}%</b></span>
-      <div class="head-actions">
-        <button class="icon-btn info" data-info="${key}" style="--dot:${color}">i</button>
-        <button class="icon-btn add" data-add="${key}">＋</button>
-      </div>
-    </header>
-
-    <details class="s-details" open>
-      <summary>Dettagli</summary>
-      <div class="s-body">
-        <label class="field">
-          <span>Responsabile / Operatore</span>
-          <input data-who="${key}" type="text" placeholder="Inserisci il nome..." value="${who||""}">
-        </label>
-
-        <label class="field">
-          <span>Note</span>
-          <textarea data-note="${key}" rows="3" placeholder="Note...">${note||""}</textarea>
-        </label>
-
-        <div class="row wrap gap">
-          <div class="score">
-            <button data-score="${key}" data-val="0" class="score-btn ${value===0?"sel":""}">0</button>
-            <button data-score="${key}" data-val="1" class="score-btn ${value===20?"sel":""}">1</button>
-            <button data-score="${key}" data-val="3" class="score-btn ${value===60?"sel":""}">3</button>
-            <button data-score="${key}" data-val="5" class="score-btn ${value===100?"sel":""}">5</button>
-          </div>
-
-          <label class="field w-auto">
-            <span>Data</span>
-            <input data-date="${key}" type="date" value="${date}">
-          </label>
-
-          <button class="danger icon-btn" data-del="${key}" title="Elimina (PIN)">🗑️</button>
-        </div>
-      </div>
-    </details>
-  </section>
-  `;
-}
-function scoreToPercent(n){
-  // 0 -> 0%, 1 -> 20%, 3->60%, 5->100%
-  switch(String(n)){
-    case "0": return 0;
-    case "1": return 20;
-    case "3": return 60;
-    case "5": return 100;
-    default: return 0;
-  }
-}
-
-async function initChecklist(){
-  const state = getState();
-
-  // badge riepilogo
-  const sum = document.getElementById("summaryBadges");
-  const vals = {
-    s1: state.s1.value, s2: state.s2.value, s3: state.s3.value, s4: state.s4.value, s5: state.s5.value
-  };
-  const makeBadge = (k, idx) =>
-    `<button class="pill sm s${idx}" data-jump="${k}">${LABELS[k]} ${vals[k]}%</button>`;
-
-  sum.innerHTML = ["s1","s2","s3","s4","s5"].map((k,i)=>makeBadge(k, i+1)).join("");
-
-  // toggle all
-  const toggle = document.getElementById("toggleAll");
-  let opened = true;
-  toggle.onclick = () => {
-    document.querySelectorAll(".s-details").forEach(d => d.open = !opened);
-    opened = !opened;
-  };
-
-  // render sezioni
-  const root = document.getElementById("sections");
-  root.innerHTML =
-    sectionTemplate("s1","1S — Selezionare",COLORS.s1,INFO.s1,state) +
-    sectionTemplate("s2","2S — Sistemare",COLORS.s2,INFO.s2,state) +
-    sectionTemplate("s3","3S — Splendere",COLORS.s3,INFO.s3,state) +
-    sectionTemplate("s4","4S — Standardizzare",COLORS.s4,INFO.s4,state) +
-    sectionTemplate("s5","5S — Sostenere",COLORS.s5,INFO.s5,state);
-
-  // click sui badge porta alla sezione
-  document.querySelectorAll("[data-jump]").forEach(b=>{
-    b.addEventListener("click", ()=>{
-      const id = b.getAttribute("data-jump");
-      location.hash = id;
-      document.getElementById(id)?.scrollIntoView({behavior:"smooth", block:"center"});
-    });
-  });
-
-  // info popup
-  const dlg = document.getElementById("infoDialog");
-  const body = document.getElementById("infoBody");
-  document.querySelectorAll("[data-info]").forEach(btn=>{
-    btn.onclick = ()=>{
-      const k = btn.getAttribute("data-info");
-      body.innerHTML = `<div class="info-box ${k}">
-        <h4>${LABELS[k]} — Info</h4>
-        <p>${INFO[k]}</p>
-      </div>`;
-      dlg.showModal();
-    };
-  });
-
-  // campi vari
-  const updateValue = ()=>{
-    const st = getState();
-    // media “di fatto”: qui è la media delle 5S, ma le card mostrano il valore corrente
-    const vals = [st.s1.value, st.s2.value, st.s3.value, st.s4.value, st.s5.value];
-    document.getElementById("avgScore").textContent = percent(Math.round(avg(vals)));
-    const late = ["s1","s2","s3","s4","s5"].filter(k=>isLate(st[k].date)).length;
-    document.getElementById("lateCount").textContent = late;
-
-    // aggiorno pill riepilogo
-    ["s1","s2","s3","s4","s5"].forEach((k,i)=>{
-      const el = document.querySelector(`.pill[data-jump="${k}"]`);
-      if (el) el.textContent = `${LABELS[k]} ${st[k].value}%`;
-    });
-
-    // evidenzio ritardo card
-    ["s1","s2","s3","s4","s5"].forEach((k)=>{
-      const card = document.getElementById(k);
-      if (card) card.classList.toggle("late", isLate(st[k].date));
-    });
-  };
-
-  // nome operatore
-  document.querySelectorAll("[data-who]").forEach(inp=>{
-    inp.addEventListener("input", ()=>{
-      const k = inp.getAttribute("data-who");
-      const st = getState();
-      st[k].who = inp.value;
-      setState(st);
-    });
-  });
-  // note
-  document.querySelectorAll("[data-note]").forEach(inp=>{
-    inp.addEventListener("input", ()=>{
-      const k = inp.getAttribute("data-note");
-      const st = getState();
-      st[k].note = inp.value;
-      setState(st);
-    });
-  });
-  // data
-  document.querySelectorAll("[data-date]").forEach(inp=>{
-    inp.addEventListener("change", ()=>{
-      const k = inp.getAttribute("data-date");
-      const st = getState();
-      st[k].date = inp.value;
-      setState(st);
-      updateValue();
-    });
-  });
-  // punteggi (sempre liberi)
-  document.querySelectorAll("[data-score]").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      const k = btn.getAttribute("data-score");
-      const v = scoreToPercent(btn.getAttribute("data-val"));
-      const st = getState();
-      st[k].value = v;
-      setState(st);
-      // selezione visuale
-      btn.parentElement.querySelectorAll(".score-btn").forEach(b=>b.classList.remove("sel"));
-      btn.classList.add("sel");
-      // aggiorna badge valore card
-      const badge = document.querySelector(`#${k} .badge b`);
-      if (badge) badge.textContent = `${v}%`;
-      updateValue();
-    });
-  });
-
-  // elimina / duplica protetti da PIN
-  document.querySelectorAll("[data-del]").forEach(btn=>{
-    btn.addEventListener("click", async ()=>{
-      const ok = await askPIN("delete");
-      if (!ok) return;
-      const k = btn.getAttribute("data-del");
-      const st = getState();
-      st[k] = { value: 0, date: todayISO(), note: "", who: "" };
-      setState(st);
-      // reset UI
-      document.querySelectorAll(`#${k} .score-btn`).forEach(b=>b.classList.remove("sel"));
-      document.querySelector(`#${k} [data-who]`).value = "";
-      document.querySelector(`#${k} [data-note]`).value = "";
-      document.querySelector(`#${k} [data-date]`).value = todayISO();
-      document.querySelector(`#${k} .badge b`).textContent = "0%";
-      updateValue();
-    });
-  });
-
-  document.querySelectorAll("[data-add]").forEach(btn=>{
-    btn.addEventListener("click", async ()=>{
-      const ok = await askPIN("add");
-      if (!ok) return;
-      // duplicazione semplice: non creiamo nuove sezioni, ma potresti qui creare righe “voce”
-      alert("Voce duplicata (demo).");
-    });
-  });
-
-  updateValue();
-
-  // se arrivo con hash (#s1...) scroll alla sezione
-  if (location.hash) {
-    const el = document.getElementById(location.hash.replace("#",""));
-    el?.scrollIntoView({behavior:"smooth", block:"center"});
-  }
-}
-
-/* router minimo per pagina */
-document.addEventListener("DOMContentLoaded", ()=>{
-  const page = document.body.getAttribute("data-page");
+/* ====== NAV / PAGES ====== */
+document.addEventListener("DOMContentLoaded", () => {
+  const page = document.body.dataset.page;
   if (page === "home") initHome();
   if (page === "checklist") initChecklist();
+
+  // PWA
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js");
+  }
 });
+
+/* ====== LOCK / PIN shared ====== */
+function openPinDialog(thenDo = ()=>{}) {
+  const dlg = document.getElementById("pinDialog");
+  const pinInput = document.getElementById("pinInput");
+  const chInput = document.getElementById("channelInput");
+  if (!dlg) return;
+
+  pinInput.value = "";
+  chInput.value = state.channel;
+
+  dlg.showModal();
+  const confirm = document.getElementById("pinConfirmBtn");
+  confirm.onclick = (ev) => {
+    ev.preventDefault();
+    if (pinInput.value === CONFIG.PIN) {
+      // applica eventuale cambio canale
+      const newCh = (chInput.value || "").trim();
+      if (newCh) {
+        state.channel = newCh;
+        saveState(state);
+      }
+      state.unlocked = true;
+      saveState(state);
+      dlg.close();
+      thenDo();
+      // richiama render dei titoli canale ove necessario
+      const ct = document.getElementById("chartTitle");
+      if (ct) ct.textContent = `Andamento ${state.channel} — ${state.area}`;
+      const pt = document.getElementById("pageTitle");
+      if (pt) pt.textContent = `${state.channel} — ${state.area}`;
+    } else {
+      alert("PIN errato.");
+    }
+  };
+}
+
+/* ====== HOME ====== */
+let chartRef = null;
+
+function initHome(){
+  // Testata lock
+  document.getElementById("lockBtn").addEventListener("click", () => openPinDialog());
+
+  // Titolo grafico
+  const ct = document.getElementById("chartTitle");
+  ct.textContent = `Andamento ${state.channel} — ${state.area}`;
+
+  // Chart
+  drawChartHome();
+  // Bottoni ritardi
+  renderLateButtons();
+
+  // Export —— protetto da PIN
+  document.getElementById("exportBtn").addEventListener("click", () => {
+    openPinDialog(() => {
+      const payload = buildSupervisorExport();
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `export-${state.channel.replace(/\s+/g,'_')}-${state.area}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  });
+}
+
+function calcPercentages(){
+  // media per ciascuna S sull’ultima entry
+  const out = {};
+  ["s1","s2","s3","s4","s5"].forEach(k=>{
+    const entries = state.sheets[k].entries;
+    const last = entries[entries.length-1] || {score:0};
+    const pct = Math.round( (last.score/5)*100 );
+    out[k] = pct;
+  });
+  return out;
+}
+
+function drawChartHome(){
+  const data = calcPercentages();
+  const ctx = document.getElementById("progressChart");
+  const labels = ["1S","2S","3S","4S","5S","Ritardi"];
+  const values = [data.s1,data.s2,data.s3,data.s4,data.s5, countLateAll()];
+  const colors = [COLORS.s1,COLORS.s2,COLORS.s3,COLORS.s4,COLORS.s5,"#e45757"];
+
+  if (chartRef) chartRef.destroy();
+  chartRef = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colors,
+        borderRadius: 8
+      }]
+    },
+    options: {
+      responsive:true,
+      plugins:{
+        legend:{display:false},
+        tooltip:{enabled:true},
+        datalabels:false
+      },
+      scales:{
+        y:{beginAtZero:true,max:100,grid:{color:"#00000008"}},
+        x:{grid:{display:false}}
+      }
+    }
+  });
+}
+
+function countLateAll(){
+  let c=0;
+  ["s1","s2","s3","s4","s5"].forEach(k=>{
+    const e = state.sheets[k].entries;
+    const last = e[e.length-1];
+    if (last && isLate(last.date)) c++;
+  });
+  return c;
+}
+
+function renderLateButtons(){
+  const wrap = document.getElementById("lateBtns");
+  wrap.innerHTML = "";
+  ["s1","s2","s3","s4","s5"].forEach(k=>{
+    const e = state.sheets[k].entries;
+    const last = e[e.length-1];
+    if (last && isLate(last.date)) {
+      const btn = document.createElement("button");
+      btn.className = `late-btn ${k}`;
+      btn.textContent = `${k.toUpperCase()} in ritardo`;
+      btn.onclick = () => { window.location.href = `checklist.html#${k}`; };
+      wrap.appendChild(btn);
+    }
+  });
+}
+
+function buildSupervisorExport(){
+  const data = calcPercentages();
+  return {
+    meta: {
+      channel: state.channel,
+      area: state.area,
+      exportedAt: new Date().toISOString()
+    },
+    scores: data,
+    late: countLateAll(),
+    raw: state.sheets
+  };
+}
+
+/* ====== CHECKLIST ====== */
+function initChecklist(){
+  // lock
+  document.getElementById("lockBtn").addEventListener("click", ()=> openPinDialog(()=>renderChecklist(true)));
+  // titoli
+  const pt = document.getElementById("pageTitle");
+  pt.textContent = `${state.channel} — ${state.area}`;
+
+  renderChecklist();
+}
+
+function renderChecklist(justUnlocked=false){
+  // Badge riassuntivi
+  const badges = document.getElementById("summaryBadges");
+  const pct = calcPercentages();
+  badges.innerHTML = "";
+  (["s1","s2","s3","s4","s5"]).forEach(k=>{
+    const chip = document.createElement("span");
+    chip.className = `chip ${k}`;
+    chip.textContent = `${k.toUpperCase()} ${pct[k]}%`;
+    chip.onclick = ()=>{
+      document.getElementById(`sheet-${k}`).scrollIntoView({behavior:"smooth",block:"start"});
+    };
+    badges.appendChild(chip);
+  });
+
+  // Schede
+  const mount = document.getElementById("sheets");
+  mount.innerHTML = "";
+  const names = {
+    s1:"Selezionare", s2:"Sistemare", s3:"Splendere", s4:"Standardizzare", s5:"Sostenere"
+  };
+
+  ["s1","s2","s3","s4","s5"].forEach(k=>{
+    const entries = state.sheets[k].entries;
+    const last = entries[entries.length-1];
+
+    const sheet = document.createElement("article");
+    sheet.className = `sheet ${isLate(last.date) ? "late":""}`;
+    sheet.id = `sheet-${k}`;
+
+    sheet.innerHTML = `
+      <div class="sheet-head">
+        <div class="sheet-title">
+          <span class="color-pill" style="background:${COLORS[k]}"></span>
+          <div><span class="chip ${k}" style="color:#fff">${k.toUpperCase()} — ${names[k]}</span></div>
+        </div>
+        <div class="sheet-actions">
+          <span class="value-badge">Valore: ${pct[k]}%</span>
+          <button class="i-btn ${k}" data-k="${k}" title="Informazioni">i</button>
+          <button class="icon-round add" title="Duplica voce">+</button>
+        </div>
+      </div>
+
+      <details class="details" open>
+        <summary>Dettagli</summary>
+
+        <div class="field">
+          <span>Responsabile / Operatore</span>
+          <input class="inp-who" placeholder="Inserisci il nome..." value="${last.who||""}" />
+        </div>
+
+        <div class="field">
+          <span>Note</span>
+          <textarea class="inp-notes" rows="3" placeholder="Note...">${last.notes||""}</textarea>
+        </div>
+
+        <div class="score-row">
+          <button class="score-btn" data-v="0">0</button>
+          <button class="score-btn" data-v="1">1</button>
+          <button class="score-btn" data-v="3">3</button>
+          <button class="score-btn" data-v="5">5</button>
+
+          <input class="date" type="date" value="${last.date}" />
+          <button class="icon-round trash" title="Elimina voce">🗑</button>
+        </div>
+        <div class="explain">${CONFIG.SCORE_HELP}</div>
+      </details>
+    `;
+    // Attiva stato bottoni
+    sheet.querySelectorAll(".score-btn").forEach(b=>{
+      if (Number(b.dataset.v)===Number(last.score)) b.classList.add("active");
+    });
+
+    // Eventi
+    sheet.querySelector(".inp-who").onchange = (e)=>{
+      last.who = e.target.value; saveState(state); updateAll();
+    };
+    sheet.querySelector(".inp-notes").onchange = (e)=>{
+      last.notes = e.target.value; saveState(state); updateAll();
+    };
+    sheet.querySelector(".date").onchange = (e)=>{
+      last.date = e.target.value; saveState(state); updateAll();
+    };
+    sheet.querySelectorAll(".score-btn").forEach(b=>{
+      b.onclick = ()=>{
+        last.score = Number(b.dataset.v);
+        saveState(state); updateAll();
+      };
+    });
+
+    // info modal
+    sheet.querySelector(".i-btn").onclick = (ev)=>{
+      const k = ev.currentTarget.dataset.k;
+      openInfo(names[k], CONFIG.INFO[k], k);
+    };
+
+    // duplica
+    sheet.querySelector(".add").onclick = ()=>{
+      requirePIN(()=>{
+        state.sheets[k].entries.push({who:"",notes:"",date:todayStr(),score:0});
+        saveState(state); renderChecklist();
+      });
+    };
+    // elimina
+    sheet.querySelector(".trash").onclick = ()=>{
+      requirePIN(()=>{
+        if (state.sheets[k].entries.length>1) state.sheets[k].entries.pop();
+        saveState(state); renderChecklist();
+      });
+    };
+
+    mount.appendChild(sheet);
+  });
+
+  document.getElementById("avgScore").textContent = calcAvg()+"%";
+  document.getElementById("lateCount").textContent = countLateAll();
+
+  // toggle all details
+  document.getElementById("toggleAll").onclick = ()=>{
+    const open = [...document.querySelectorAll(".details")].some(d=>d.open);
+    document.querySelectorAll(".details").forEach(d=>d.open = !open);
+  };
+
+  // deep link #sX
+  if (!justUnlocked && location.hash){
+    const id = `sheet-${location.hash.replace("#","")}`;
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({behavior:"smooth",block:"start"});
+  }
+}
+
+function calcAvg(){
+  const p = calcPercentages();
+  return Math.round((p.s1+p.s2+p.s3+p.s4+p.s5)/5);
+}
+
+function updateAll(){
+  // refresh % riassunto, card valori, late highlight, chart home se presente
+  if (document.body.dataset.page==="checklist"){
+    renderChecklist(true);
+  } else {
+    drawChartHome();
+    renderLateButtons();
+  }
+}
+
+/* PIN richiesto per azioni critiche (duplica/cancella) */
+function requirePIN(cb){
+  if (state.unlocked) { cb(); return; }
+  openPinDialog(cb);
+}
+
+/* Modale INFO */
+function openInfo(title, text, k){
+  const dlg = document.getElementById("infoDialog");
+  document.getElementById("infoTitle").textContent = `${title} — Info`;
+  const txt = document.getElementById("infoText");
+  txt.textContent = text;
+  // bordo tema
+  dlg.querySelector(".modal-box").style.borderTop = `6px solid ${COLORS[k]||"#999"}`;
+  dlg.showModal();
+}
