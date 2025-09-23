@@ -1,13 +1,14 @@
 {
   "name": "SKF 5S — Montaggio",
   "short_name": "SKF 5S",
-  "start_url": "./?source=pwa",
+  "description": "Checklist 5S per il canale CH 24 — Montaggio",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2c6bed",
+  "background_color": "#0b5ed7",
+  "theme_color": "#0b5ed7",
   "icons": [
-    { "src": "assets/skf-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "assets/skf-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "assets/pwa-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable any" },
+    { "src": "assets/pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable any" }
   ]
 }
