@@ -1,4 +1,4 @@
-const CACHE = 'skf5s-montaggio-v3';
+const CACHE = 'skf5s-montaggio-v4';
 const ASSETS = [
   './','./index.html','./checklist.html',
   './style.css','./app.js','./checklist.js',
