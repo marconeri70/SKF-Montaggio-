@@ -6,95 +6,87 @@
   <title>SKF 5S — Montaggio</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0b5ed7">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="apple-touch-icon" href="assets/pwa-192.png">
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0a57d5" />
+  <link rel="icon" href="assets/pwa-192.png" />
 
   <link rel="stylesheet" href="style.css" />
+
+  <!-- Chart.js -->
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- App -->
   <script defer src="app.js"></script>
 </head>
 <body data-page="home">
-  <header class="topbar">
-    <div class="brand">
-      <img class="logo" src="assets/logo.png" alt="SKF" />
-      <h1 class="wordmark">
-        <span class="c1">S</span><span class="c2">K</span><span class="c3">F</span>
-        <span class="sep">&nbsp;</span><span class="c5">5</span><span class="c5s">S</span>
+  <header class="appbar">
+    <div class="left">
+      <img class="skf-logo" src="assets/skf-logo.png" alt="SKF" />
+      <h1 class="brand">
+        <span class="s1">S</span><span class="s2">K</span><span class="s3">F</span>
+        <span class="space"></span>
+        <span class="s1">5</span><span class="s2">S</span>
       </h1>
     </div>
 
-    <div class="actions">
-      <button id="btn-lock" class="icon-btn" title="Sblocca azioni protette">
-        🔒
-      </button>
+    <div class="right">
+      <button id="lockBtn" class="icon-btn" aria-label="Impostazioni / PIN">🔒</button>
       <a class="cta" href="checklist.html">Vai alla checklist →</a>
     </div>
   </header>
 
   <main class="container">
-    <!-- Cosa è 5S -->
-    <section class="card">
-      <div class="flex">
-        <figure class="hero">
-          <img src="assets/5s-hero.png" alt="5S" />
-        </figure>
-        <div class="text">
+    <!-- Hero 5S -->
+    <section class="card hero">
+      <div class="hero-grid">
+        <img class="hero-img" src="assets/5s-hero.png" alt="Diagramma 5S" />
+        <div>
           <h2>Cosa è 5S</h2>
-          <ul class="what5s">
-            <li><span class="pill s1">1S Selezionare</span> — Eliminare il superfluo.</li>
-            <li><span class="pill s2">2S Sistemare</span> — Un posto per tutto e tutto al suo posto.</li>
-            <li><span class="pill s3">3S Splendere</span> — Pulire e prevenire lo sporco.</li>
-            <li><span class="pill s4">4S Standardizzare</span> — Regole e segnali chiari.</li>
-            <li><span class="pill s5">5S Sostenere</span> — Abitudine e miglioramento continuo.</li>
+          <ul class="fiveS">
+            <li><span class="chip s1">1S Selezionare</span> — Eliminare il superfluo.</li>
+            <li><span class="chip s2">2S Sistemare</span> — Un posto per tutto e tutto al suo posto.</li>
+            <li><span class="chip s3">3S Splendere</span> — Pulire e prevenire lo sporco.</li>
+            <li><span class="chip s4">4S Standardizzare</span> — Regole e segnali chiari.</li>
+            <li><span class="chip s5">5S Sostenere</span> — Abitudine e miglioramento continuo.</li>
           </ul>
         </div>
       </div>
     </section>
 
-    <!-- Grafico andamento -->
+    <!-- Chart -->
     <section class="card">
-      <h2 id="tit-andamento">Andamento CH 24 — Montaggio</h2>
+      <h2 id="chartTitle">Andamento CH 24 — Montaggio</h2>
       <div class="chart-wrap">
-        <canvas id="chart"></canvas>
-      </div>
-      <div id="legend" class="legend"></div>
-
-      <div class="late-wrap">
-        <h3>Sezioni in ritardo</h3>
-        <div id="lateChips" class="chips"></div>
+        <canvas id="progressChart" height="180"></canvas>
       </div>
 
-      <div class="export">
-        <button id="btn-export" class="secondary">Esporta dati per Supervisore (PIN)</button>
+      <div id="lateBtns" class="late-buttons"></div>
+
+      <div class="export-row">
+        <button id="exportBtn" class="btn secondary">Esporta dati per Supervisore (PIN)</button>
       </div>
     </section>
   </main>
 
-  <!-- PIN Modal -->
-  <dialog id="pinDialog">
-    <form method="dialog" class="pin-form">
-      <h3>Autorizzazione</h3>
-      <p>Inserisci PIN per procedere.</p>
-      <input id="pinInput" type="password" inputmode="numeric" placeholder="PIN" autocomplete="one-time-code" />
-      <div class="row">
-        <button value="cancel" class="ghost">Annulla</button>
-        <button id="pinConfirm" value="ok" class="primary">Conferma</button>
-      </div>
+  <!-- Modale PIN / Impostazioni -->
+  <dialog id="pinDialog" class="modal">
+    <form method="dialog" class="modal-box">
+      <h3>Impostazioni protette</h3>
+      <label class="field">
+        <span>Inserisci PIN</span>
+        <input id="pinInput" inputmode="numeric" placeholder="••••" />
+      </label>
+
+      <label class="field">
+        <span>Nome canale (CH)</span>
+        <input id="channelInput" placeholder="CH 24" />
+      </label>
+
+      <menu>
+        <button class="btn secondary" value="cancel">Annulla</button>
+        <button id="pinConfirmBtn" class="btn">Conferma</button>
+      </menu>
+      <p class="hint">Il PIN è configurabile in <code>app.js</code> (CONFIG.PIN).</p>
     </form>
   </dialog>
-
-  <footer class="foot">
-    BUILD vMont-CH24
-  </footer>
-
-  <script>
-    // Registra il Service Worker (PWA)
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(console.error);
-    }
-  </script>
 </body>
 </html>
