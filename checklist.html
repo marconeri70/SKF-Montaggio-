@@ -1,3 +1,9 @@
+// protezione da JSON corrotti
+function loadStateSafe(key){
+  try{ const r = localStorage.getItem(key); return r? JSON.parse(r): null; }
+  catch(e){ localStorage.removeItem(key); return null; }
+}
+
 <!doctype html>
 <html lang="it">
 <head>
