@@ -1,71 +1,53 @@
 <!doctype html>
 <html lang="it">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>SKF 5S — Montaggio — Checklist</title>
-
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#2c6bed">
-  <link rel="icon" href="assets/skf-192.png">
-  <link rel="apple-touch-icon" href="assets/skf-192.png">
-
-  <link rel="stylesheet" href="style.css">
-  <script>navigator.serviceWorker?.register('sw.js');</script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Checklist 5S</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="appbar">
-    <a class="btn ghost" href="./">← Indietro</a>
-    <h1 class="title" data-ch>CH 24 — Montaggio</h1>
-    <button id="btn-lock" class="btn lock" title="Azioni protette"></button>
+  <header class="topbar">
+    <a class="btn ghost" href="index.html">← Indietro</a>
+    <h1><span data-ch></span></h1>
+    <button id="btnLock" class="btn ghost" title="Sblocca modifiche (PIN)">🔒</button>
   </header>
 
   <main class="container">
-    <section class="kpi row gap">
-      <div class="kpi-card">
-        <div class="kpi-title">Punteggio medio</div>
-        <div id="avg" class="kpi-value">0%</div>
+    <section class="grid">
+      <div class="stat card">
+        <div class="stat-title">Punteggio medio</div>
+        <div id="statAvg" class="stat-value">0%</div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-title">Azioni in ritardo</div>
-        <div id="late" class="kpi-value">0</div>
+      <div class="stat card">
+        <div class="stat-title">Azioni in ritardo</div>
+        <div id="statLate" class="stat-value">0</div>
       </div>
     </section>
 
-    <section class="card">
-      <div id="summary" class="s-badges row wrap gap"></div>
-      <button id="toggleAll" class="btn info">Comprimi / Espandi</button>
+    <!-- Pill riassunto 5S -->
+    <section class="card center">
+      <div id="pills" class="pill-row"></div>
+      <button id="btnToggleAll" class="btn primary">Comprimi / Espandi</button>
     </section>
 
-    <div id="sections" class="sections"></div>
+    <!-- Schede 5S -->
+    <section id="cards" class="cards"></section>
   </main>
 
-  <!-- Dialog PIN -->
-  <dialog id="dlg-pin">
-    <form method="dialog" class="dlg">
-      <h3>Sicurezza</h3>
-      <p id="pin-msg">Inserisci PIN per procedere</p>
-      <input id="pin-input" type="password" inputmode="numeric" maxlength="6" class="input" placeholder="PIN" autofocus>
-      <div class="row end gap">
-        <button class="btn">Annulla</button>
-        <button id="pin-ok" class="btn primary" value="ok">OK</button>
-      </div>
-    </form>
-  </dialog>
+  <footer class="foot">BUILD v1k-CH24</footer>
 
-  <!-- Dialog info S -->
-  <dialog id="dlg-info">
-    <form method="dialog" class="dlg">
-      <h3 id="info-title">Informazioni</h3>
-      <p id="info-body" class="mb0"></p>
-      <div class="row end gap mt12">
-        <button class="btn primary">OK</button>
-      </div>
-    </form>
-  </dialog>
-
-  <footer class="footer">BUILD Montaggio</footer>
-
-  <script src="checklist.js"></script>
+  <script src="app.js"></script>
+  <script>
+    renderCH();
+    mountChecklist({
+      pillsEl: 'pills',
+      cardsEl: 'cards',
+      avgEl: 'statAvg',
+      lateEl: 'statLate',
+      toggleBtn: 'btnToggleAll',
+      lockBtn: 'btnLock'
+    });
+  </script>
 </body>
 </html>
