@@ -1,64 +1,70 @@
-// protezione da JSON corrotti
-function loadStateSafe(key){
-  try{ const r = localStorage.getItem(key); return r? JSON.parse(r): null; }
-  catch(e){ localStorage.removeItem(key); return null; }
-}
-
 <!doctype html>
 <html lang="it">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>CH 24 — Montaggio · Checklist 5S</title>
-  <link rel="icon" href="assets/skf-512.png">
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body class="page">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>SKF 5S — Montaggio — Checklist</title>
 
-  <header class="topbar">
-    <a class="btn ghost" href="index.html">← Indietro</a>
-    <h1 class="title">CH 24 — Montaggio</h1>
-    <button id="lockBtn" class="btn lock" title="Sblocca per modificare"></button>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2c6bed">
+  <link rel="icon" href="assets/skf-192.png">
+  <link rel="apple-touch-icon" href="assets/skf-192.png">
+
+  <link rel="stylesheet" href="style.css">
+  <script>navigator.serviceWorker?.register('sw.js');</script>
+</head>
+<body>
+  <header class="appbar">
+    <a class="btn ghost" href="./">← Indietro</a>
+    <h1 class="title" data-ch>CH 24 — Montaggio</h1>
+    <button id="btn-lock" class="btn lock" title="Azioni protette"></button>
   </header>
 
   <main class="container">
-    <!-- KPI -->
-    <section class="grid-kpi">
-      <div class="card kpi">
+    <section class="kpi row gap">
+      <div class="kpi-card">
         <div class="kpi-title">Punteggio medio</div>
-        <div id="avgScore" class="kpi-value">0%</div>
+        <div id="avg" class="kpi-value">0%</div>
       </div>
-      <div class="card kpi">
+      <div class="kpi-card">
         <div class="kpi-title">Azioni in ritardo</div>
-        <div id="lateCount" class="kpi-value">0</div>
+        <div id="late" class="kpi-value">0</div>
       </div>
     </section>
 
-    <!-- Riepilogo 5S -->
     <section class="card">
-      <div id="summary" class="summary"></div>
-      <button id="toggleAll" class="btn primary">Comprimi / Espandi</button>
+      <div id="summary" class="s-badges row wrap gap"></div>
+      <button id="toggleAll" class="btn info">Comprimi / Espandi</button>
     </section>
 
-    <!-- Sezioni 5S -->
-    <section id="sections" class="sections"></section>
+    <div id="sections" class="sections"></div>
   </main>
 
-  <!-- Popup info S -->
-  <dialog id="infoDialog" class="info">
-    <div class="info-head">
-      <div class="dot" id="infoDot"></div>
-      <div id="infoTitle" class="info-title">Titolo</div>
-    </div>
-    <div id="infoText" class="info-text">Descrizione…</div>
-    <div class="row end">
-      <button class="btn" onclick="document.getElementById('infoDialog').close()">Chiudi</button>
-    </div>
+  <!-- Dialog PIN -->
+  <dialog id="dlg-pin">
+    <form method="dialog" class="dlg">
+      <h3>Sicurezza</h3>
+      <p id="pin-msg">Inserisci PIN per procedere</p>
+      <input id="pin-input" type="password" inputmode="numeric" maxlength="6" class="input" placeholder="PIN" autofocus>
+      <div class="row end gap">
+        <button class="btn">Annulla</button>
+        <button id="pin-ok" class="btn primary" value="ok">OK</button>
+      </div>
+    </form>
   </dialog>
 
-  <footer class="foot">
-    BUILD montaggio-v1
-  </footer>
+  <!-- Dialog info S -->
+  <dialog id="dlg-info">
+    <form method="dialog" class="dlg">
+      <h3 id="info-title">Informazioni</h3>
+      <p id="info-body" class="mb0"></p>
+      <div class="row end gap mt12">
+        <button class="btn primary">OK</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer class="footer">BUILD Montaggio</footer>
 
   <script src="checklist.js"></script>
 </body>
