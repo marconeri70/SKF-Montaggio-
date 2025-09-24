@@ -1,6 +1,6 @@
 /** CONFIGURAZIONE */
 const CONFIG = {
-  AREA: "Rettifica",           // Per Montaggio cambia qui in "Montaggio"
+  AREA: "MONTAGGIO",           // Per Montaggio cambia qui in "Montaggio"
   CHANNEL_DEFAULT: "CH 24",
   DEFAULT_PIN: "6170"
 };
