@@ -1,6 +1,6 @@
 /** CONFIGURAZIONE */
 const CONFIG = {
-  AREA: "Montaggio",           // ⚠️ Per Montaggio cambia qui in "Montaggio"
+  AREA: "Montaggio",           // Impostato su Montaggio
   CHANNEL_DEFAULT: "CH 24",
   DEFAULT_PIN: "6170"
 };
@@ -181,7 +181,6 @@ function renderChart(){
     options:{
       responsive:true,
       maintainAspectRatio: false,
-      // Azione di tocco sulle colonne (naviga direttamente alla scheda)
       onClick: (e, elements) => {
         if (elements.length > 0) {
             const idx = elements[0].index;
@@ -196,7 +195,6 @@ function renderChart(){
       },
       plugins:{
         legend:{display:false},
-        // Tolto completamente l'odioso tooltip testuale
         tooltip:{ enabled: false }
       },
       scales:{
@@ -277,7 +275,6 @@ function setupChecklist(){
     el.className = `s-badge ${k}`;
     el.textContent = `${k.toUpperCase()} ${v*20}%`;
     
-    // QUI LA MODIFICA: Invece di scrollIntoView, cambia l'hash della barra degli indirizzi, innescando l'evidenziatore luminoso CSS!
     el.addEventListener("click", ()=> {
       window.location.hash = ''; // resetta per permettere il ri-click
       setTimeout(()=> { window.location.hash = `sheet-${k}`; }, 10);
